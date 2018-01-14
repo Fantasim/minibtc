@@ -2,7 +2,6 @@ package script
 
 import (
 	"errors"
-	"reflect"
 	"bytes"
 	"letsgo/util"
 )
@@ -19,6 +18,23 @@ type parsedOpcode struct {
 	opcode *opcode
 	data   []byte
 }
+
+type SigHashType byte
+
+// Hash type bits from the end of a signature.
+const (
+	SigHashOld          SigHashType = 0x0
+	SigHashAll          SigHashType = 0x1
+	SigHashNone         SigHashType = 0x2
+	SigHashSingle       SigHashType = 0x3
+	SigHashAllValue     SigHashType = 0x4
+	SigHashAnyOneCanPay SigHashType = 0x80
+
+	// sigHashMask defines the number of bits of the hash type which is used
+	// to identify which outputs are signed.
+	sigHashMask = 0x1f
+)
+
 
 const (
 	OP_0                   = 0x00 // 0
@@ -74,13 +90,13 @@ var opcodeArray = [256]opcode{
 	OP_ADD:                {OP_ADD, "OP_ADD", 1, opcodeAdd},
 	OP_SUB:                {OP_SUB, "OP_SUB", 1, opcodeSub},
 	OP_HASH160:             {OP_HASH160, "OP_HASH160", 1, opcodeHash160},
-	OP_CHECKSIG:            {OP_CHECKSIG, "OP_CHECKSIG", 1, nil},
+	OP_CHECKSIG:            {OP_CHECKSIG, "OP_CHECKSIG", 1, opcodeCheckSig},
 	OP_CHECKSIGVERIFY:      {OP_CHECKSIGVERIFY, "OP_CHECKSIGVERIFY", 1, nil},
 	OP_CHECKMULTISIG:       {OP_CHECKMULTISIG, "OP_CHECKMULTISIG", 1, nil},
 }
 
 func (op opcode) IsEmpty() bool {
-	return reflect.DeepEqual(op,opcode{})
+	return op.name == ""
 }
 
 //Si l'opcode est une action a effectué sur la stack
@@ -187,7 +203,6 @@ func opcodeAdd(op *parsedOpcode, engine *Engine) error {
 	if err != nil {
 		return err
 	}
-
 	engine.dstack.PushInt(v0 + v1)
 	return nil
 }
@@ -227,3 +242,25 @@ func opcodeHash160(op *parsedOpcode, vm *Engine) error {
 	return nil
 }
 
+// Stack transformation: [... signature pubkey] -> [... bool]
+func opcodeCheckSig(op *parsedOpcode, vm *Engine) error {
+	/*pkBytes, err := vm.dstack.Pop()
+	
+	if err != nil {
+		return err
+	}
+
+	fullSigBytes, err := vm.dstack.Pop()
+	if err != nil {
+		return err
+	}
+
+	// The signature actually needs needs to be longer than this, but at
+	// least 1 byte is needed for the hash type below.  The full length is
+	// checked depending on the script flags and upon parsing the signature.
+	if len(fullSigBytes) < 1 {
+		vm.dstack.PushBool(false)
+		return nil
+	}*/
+	return nil
+}

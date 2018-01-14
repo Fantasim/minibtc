@@ -12,6 +12,7 @@ type CLI struct {
 func (cli *CLI) printUsage() {
 	fmt.Println("Commands:")
 	fmt.Println(" wallet \t Manage local wallets")
+	fmt.Println(" blockchain \t Manage blockchain")
 }
 
 //Verifie les arguments
@@ -31,9 +32,17 @@ func Start(){
 
 //la liste des commandes
 func (cli *CLI) listMenu(){
+
 	switch os.Args[1] {
 		case "wallet":
 			walletCli()
+		
+		case "blockchain":
+			blockchainCli()
+
+		case "blockchain_print":
+			BlockchainPrintCli()
+
 		default: 
 			cli.printUsage()
 	}

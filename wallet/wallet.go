@@ -68,6 +68,10 @@ func (w Wallet) GetAddress() []byte {
 	return address
 }
 
+func GetPubKeyFromAddress(addr string) []byte {
+	return WalletList[addr].PublicKey
+}
+
 //Recupere le checksum d'une clé publique (processus utilisé par le BTC)
 func checksum(payload []byte) []byte {
 	//double sha256

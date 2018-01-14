@@ -2,7 +2,6 @@ package script
 
 import (
 	"fmt"
-	"strconv"
 	"errors"
 	"letsgo/util"
 )
@@ -28,14 +27,14 @@ func (s *stack) Push(elem []byte) error {
 
 //ajoute un int dans la stack
 func (s *stack) PushInt(n int) error {
-	s.stk = append(s.stk, []byte(strconv.Itoa(n)))
+	s.stk = append(s.stk, []byte{util.IntToByte(n)})
 	return nil
 }
 
 //ajoute un bool dans la stack
 func (s *stack) PushBool(b bool) error {
 	if b {
-		s.stk = append(s.stk, []byte{1})
+		s.stk = append(s.stk, []byte{0x01})
 	} else {
 		s.stk = append(s.stk, nil)
 	}
@@ -61,12 +60,16 @@ func (s *stack) PopInt() (int, error){
 		return 0, errors.New("empty stack")
 	}
 	var idx = len(s.stk) - 1
-
-	ret, err := util.ArrayByteToInt(s.stk[idx])
-	if err != nil {
-		return 0, err
+	var ret int
+	var err error
+	if len(s.stk[idx]) == 1 {
+		ret = util.ByteToInt(s.stk[idx][0])
+	} else {
+		ret, err = util.ArrayByteToInt(s.stk[idx])
+		if err != nil {
+			return 0, err
+		}
 	}
-
 	s.stk = append(s.stk[:idx], s.stk[idx+1:]...)
 	return ret, nil
 }
@@ -74,17 +77,20 @@ func (s *stack) PopInt() (int, error){
 //recupere et supprime le dernier element ajouté dans la stack
 //format : bool
 func (s *stack) PopBool() (bool, error){
-	var idx = len(s.stk) - 1
 	if len(s.stk) == 0 {
 		return false, errors.New("empty stack")
 	}
-
-	ret, err := util.ArrayByteToInt(s.stk[idx])
-	if err != nil {
-		fmt.Println(s.stk[idx])
-		ret = int(s.stk[idx][0])
+	var idx = len(s.stk) - 1
+	var ret int
+	var err error
+	if len(s.stk[idx]) == 1 {
+		ret = util.ByteToInt(s.stk[idx][0])
+	} else {
+		ret, err = util.ArrayByteToInt(s.stk[idx])
+		if err != nil {
+			return false, err
+		}
 	}
-
 	s.stk = append(s.stk[:idx], s.stk[idx+1:]...)
 	if ret == 1 {
 		return true, nil

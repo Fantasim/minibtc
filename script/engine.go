@@ -2,7 +2,6 @@ package script
 
 import (
 	"fmt"
-	"letsgo/util"
 	"errors"
 )
 
@@ -18,7 +17,12 @@ type Engine struct {
 func (engine *Engine) PrintScript(idx int){
 	fmt.Printf("script[%d]: ", idx)
 	for _, code := range engine.scripts[idx] {
-		fmt.Print(" ", code.opcode.name)
+		if code.opcode.IsEmpty() {
+			fmt.Print(" <", string(code.data))
+			fmt.Print("> ")
+		} else {
+			fmt.Print(" ", code.opcode.name)
+		}
 	}
 	fmt.Print("\n")
 }
@@ -33,15 +37,14 @@ func NewEngine() *Engine {
 //Parse le double array byte en script
 func (engine *Engine) ParseScript(script [][]byte) error {
 	for _, opcodeByte := range script {
-		idx, err := util.ArrayByteToInt(opcodeByte)
-		if err != nil {
-			return err
+		op := new(opcode)
+		op.opfunc = opcodePushData
+		if len(opcodeByte) == 1 {
+			idx := int(opcodeByte[0])	
+			op = &opcodeArray[idx]		
+		} else if len(opcodeByte) == 0 {
+			continue
 		}
-		var op *opcode
-		if idx > 0 && idx < 256 {
-			op = &opcodeArray[idx]
-		}
-
 		engine.scripts[0] = append(
 			engine.scripts[0],
 			parsedOpcode{

@@ -9,6 +9,14 @@ func IntToArrayByte(n int) []byte {
 	return []byte(strconv.Itoa(n))
 }
 
+func DupByteDoubleArray(a... []byte) [][]byte{
+	byteSlice := make([][]byte, len(a))
+	for i, b := range a {
+		byteSlice[i] = b
+	}
+	return byteSlice
+}
+
 func ArrayIntToArrayByte(slice []int) []byte {
 	if len(slice) == 0 {
 		return nil
@@ -30,6 +38,10 @@ func ArrayByteToInt(slice []byte) (int, error) {
 
 func ByteToInt(b byte) int {
 	return int(b)
+}
+
+func IntToByte(n int) byte{
+	return byte(n)
 }
 
 func IntToHex(n int) string {
