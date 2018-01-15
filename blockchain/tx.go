@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding/gob"
 	"letsgo/util"
-	"strconv"
 )
 
 type Transaction struct {
@@ -18,7 +17,7 @@ type Transaction struct {
 	LockTime []byte //[4]
 }
 
-// Serialize returns a serialized Transaction
+//Serialise une transaction
 func (tx Transaction) Serialize() []byte {
 	var encoded bytes.Buffer
 
@@ -31,14 +30,16 @@ func (tx Transaction) Serialize() []byte {
 	return encoded.Bytes()
 }
 
- func NewCoinbaseTx(toPubKey, signature []byte) Transaction {
-	txIn := NewTxInput([]byte{}, []byte("-1"), script.Script.CoinbaseLockingScript(toPubKey))
-	txOut := NewTxOutput(script.Script.CoinbaseUnlockingScript(signature), REWARD)
+//Créer une transaction coinbase
+func NewCoinbaseTx(toPubKey, signature []byte) Transaction {
+	var empty [][]byte
+	txIn := NewTxInput([]byte{}, util.EncodeInt(-1), empty)
+	txOut := NewTxOutput(script.Script.LockingScript(util.Sha256(toPubKey)), REWARD)
 
 	tx := Transaction{
 		Version: []byte{VERSION},
-		InCounter: []byte("1"),
-		OutCounter: []byte("1"),
+		InCounter: util.EncodeInt(1),
+		OutCounter: util.EncodeInt(1),
 		LockTime: []byte{0},
 	}
 	tx.Inputs = []Input{txIn}
@@ -46,22 +47,42 @@ func (tx Transaction) Serialize() []byte {
 	return tx
 }
 
-
-
 // Retourne l'ID de la transaction
 func (tx *Transaction) GetHash() []byte {
 	return util.Sha256(tx.Serialize())
 }
 
+//Retourne la valeur total des outputs de la TX
 func (tx *Transaction) GetValue() int {
 	val := 0
 	for _, out := range tx.Outputs {
-		outVal, _ := strconv.Atoi(string(out.Value)) 
-		val += outVal
+		val += util.DecodeInt(out.Value)
 	}
 	return val
 }
 
+//Retourne true si la tx est coinbase
 func (tx *Transaction) IsCoinbase() bool {
-	return len(tx.Inputs) == 1 && len(tx.Inputs[0].PrevTransactionHash) == 0 && bytes.Compare(tx.Inputs[0].Vout, []byte("-1")) == 0
+	return len(tx.Inputs) == 1 && len(tx.Inputs[0].PrevTransactionHash) == 0 && bytes.Compare(tx.Inputs[0].Vout, util.EncodeInt(-1)) == 0
+}
+
+//Récupère une transaction par son hash, avec le block dans lequel
+//se trouve la transaction, ainsi que la hauteur du block
+func GetTxByHash(hash []byte) (*Transaction, *Block, int) {
+	be := NewExplorer()
+	var i = BC_HEIGHT
+	for i > 0 {
+		block := be.Next()
+		for _, tx := range block.Transactions {
+			if bytes.Compare(hash, tx.GetHash()) == 0 {
+				return &tx, block, i
+			}
+		}
+		i--
+	}
+	return nil, nil, -1
+}
+
+func CreateTx(to string, amount int) *Transaction {
+	return nil
 }

@@ -53,7 +53,7 @@ func (pow *Pow) Run() (int, []byte, error) {
 
 	fmt.Println("mining...")
 	for nonce < maxNonce {
-		data := pow.prepareData(util.IntToArrayByte(nonce))
+		data := pow.prepareData(util.EncodeInt(nonce))
 		hash = util.Sha256(data)
 		hashInt.SetBytes(hash[:])
 		if hashInt.Cmp(pow.target) == -1 {

@@ -7,7 +7,6 @@ import (
 )
 
 func walletUsage(){
-	fmt.Println("wallet")
 	fmt.Println(" Options:")
 	fmt.Println("	--new		Generate a new wallet")
 	fmt.Println("	--list		Print list of local wallets")

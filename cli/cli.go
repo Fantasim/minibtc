@@ -43,6 +43,11 @@ func (cli *CLI) listMenu(){
 		case "blockchain_print":
 			BlockchainPrintCli()
 
+		case "tx":
+			TxPrintCli()
+
+		case "tx_create":
+			TxCreateCli()
 		default: 
 			cli.printUsage()
 	}

@@ -5,10 +5,6 @@ import (
 	"fmt"
 )
 
-func IntToArrayByte(n int) []byte {
-	return []byte(strconv.Itoa(n))
-}
-
 func DupByteDoubleArray(a... []byte) [][]byte{
 	byteSlice := make([][]byte, len(a))
 	for i, b := range a {
@@ -44,12 +40,13 @@ func IntToByte(n int) byte{
 	return byte(n)
 }
 
-func IntToHex(n int) string {
-	return fmt.Sprintf("%x", n)
+func EncodeInt(n int) []byte {
+	h := fmt.Sprintf("%02x", n)
+	return []byte(h)
 }
 
-func HexToInt(hex string) int {
-	i, _ := strconv.ParseInt(hex, 16, 64)
+func DecodeInt(d []byte) int {
+	i, _ := strconv.ParseInt(string(d), 16, 64)
 	return int(i)
 }
 

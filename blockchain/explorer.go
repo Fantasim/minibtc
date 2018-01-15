@@ -7,7 +7,7 @@ import (
 	"bytes"
 )
 
-// BlockchainIterator is used to iterate over blockchain blocks
+//Structure utiliser pour parcourir les blocks de la chain
 type BlockchainExplorer struct {
 	CurrentHash []byte
 	DB          *bolt.DB
@@ -17,7 +17,8 @@ func NewExplorer() *BlockchainExplorer {
 	return &BlockchainExplorer{CurrentHash: BC.Tip, DB: BC.DB}
 }
 
-// Next returns next block starting from the tip
+//Retourne le block suivant 
+//commence par le block correspondant au tip
 func (be *BlockchainExplorer) Next() *Block{
 	//Si le block est genese
 	if bytes.Compare(be.CurrentHash,GENESIS_BLOCK_PREVHASH) == 0 {

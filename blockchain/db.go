@@ -12,6 +12,7 @@ func dbExists() bool {
 	return true
 }
 
+//Charge la db de la blockchain si elle existe
 func loadDB() error {
 	var tip []byte
 	db, err := bolt.Open(DB_FILE, 0600, nil)
@@ -31,10 +32,12 @@ func loadDB() error {
 	return nil
 }
 
+//Supprime la db de la blockchain
 func RemoveBlockchainDB() error {
 	return os.Remove(DB_FILE)
 }
 
+//Créer une nouvelle blockchain avec le block genese contenant une tx coinbase
 func CreateBlockchainDB(genesis Block) error {
 	db, err := bolt.Open(DB_FILE, 0600, nil)
 	if err != nil {

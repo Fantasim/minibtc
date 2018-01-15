@@ -14,6 +14,7 @@ const (
 
 var (
 	WalletList map[string]*Wallet
+	WalletLoaded = false
 	NODE_ID string
 	WALLET_FILE = "/Users/fantasim/go/src/letsgo/assets/dat/"
 )
@@ -32,6 +33,7 @@ func init(){
 	WALLET_FILE += NODE_ID
 	WalletList = make(map[string]*Wallet)
 	LoadFromFile()
+	WalletLoaded = true
 }
 
 //Gènere un nouveau wallet

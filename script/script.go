@@ -10,7 +10,7 @@ var Script = new(script)
 type script struct {}
 
 
-//Generation d'un script de type PayToPubKeyHash (Output)
+//Generation d'un script de type PayToPubKeyHash (ScriptPubKey)
 //OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
 func (s *script) LockingScript(pubKeyHash []byte) [][]byte {
 	return util.DupByteDoubleArray(
@@ -22,7 +22,7 @@ func (s *script) LockingScript(pubKeyHash []byte) [][]byte {
 	)
 }
 
-//Generation d'un script de locking script pour une transaction coinbase (Output)
+//Generation d'un script de locking script pour une transaction coinbase (Output) (ScriptPubkey)
 //prend en paramètre la clé publique de son wallet
 func (s *script) CoinbaseLockingScript(pubKey []byte) [][]byte {
 	return util.DupByteDoubleArray(
@@ -31,20 +31,21 @@ func (s *script) CoinbaseLockingScript(pubKey []byte) [][]byte {
 	)
 }
 
-//Generation d'un script d'input :
+//Generation d'un script d'input : //ScriptSig
 //<signature> <pubKey>
-func (s *script) UnlockingScript(signature, pubKey []byte) [][]byte{
+func (s *script) UnlockingScript(signature, pubKey []byte) [][]byte{ 
 	return util.DupByteDoubleArray(
 		[]byte(signature), 
 		[]byte(pubKey),
 	)
 }
 
-//Generation d'un script d' unlocking script pour une transaction coinbase (input)
+//Generation d'un script d' unlocking script pour une transaction coinbase (ScriptSig)
 //prend en paramètre la signature de sa clé privée
 func (s *script) CoinbaseUnlockingScript(signature []byte) [][]byte {
 	return [][]byte{signature}
 }
+
 
 //Addition 1 + 4 = 5
 //Script correct
