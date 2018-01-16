@@ -3,6 +3,7 @@ package cli
 import (
 	"flag"
 	"letsgo/wallet"
+	"letsgo/blockchain"
 	"fmt"
 )
 
@@ -10,6 +11,13 @@ func walletUsage(){
 	fmt.Println(" Options:")
 	fmt.Println("	--new		Generate a new wallet")
 	fmt.Println("	--list		Print list of local wallets")
+}
+
+//Afficher les adresses du wallet
+func PrintAddressStored(){
+	for _, ws := range blockchain.Walletinfo.Ws {
+		fmt.Println(string(ws.Wallet.GetAddress()), "\t", ws.Amount)
+	}
 }
 
 func walletCli(){
@@ -21,7 +29,7 @@ func walletCli(){
 
 	if *list {
 		//affiche la liste des addresses locals
-		wallet.PrintAddressStored()
+		PrintAddressStored()
 	} else if *new {
 		//genere un nouveau wallet
 		fmt.Println(wallet.GenerateWallet())

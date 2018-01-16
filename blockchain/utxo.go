@@ -4,7 +4,8 @@ import (
 	"github.com/boltdb/bolt"
 	"letsgo/util"
 	"log"
-	"letsgo/wallet"
+	//"letsgo/wallet"
+	//"fmt"
 	"encoding/hex"
 )
 
@@ -18,17 +19,11 @@ var (
 
 type UTXOSet struct {}
 
-//Structure représent un output non dépensé
-type SpendableOutput struct {
-	PubKeyHash []byte
-	Amount int
-	Outputs map[string][]int
-}
 
 //Récupère une liste d'outputs non dépensé locké avec le pubKeyHash
 //d'un montant supérieur ou égal au montant passé en paramètre
-func (utxo *UTXOSet) FindSpendableOutputsByPubKeyHash(pubKeyHash []byte, amount int ) (int, map[string][]int) {
-	unspentOutputs := make(map[string][]int)
+func (utxo *UTXOSet) FindSpendableOutputsByPubKeyHash(pubKeyHash []byte, amount int ) (int, []UnspentOutput) {
+	var unspentOutputs []UnspentOutput
 	accumulated := 0
 	db := BC.DB
 
@@ -38,7 +33,6 @@ func (utxo *UTXOSet) FindSpendableOutputsByPubKeyHash(pubKeyHash []byte, amount 
 
 		//Pour chaque transaction comportant des outputs non dépensés
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			txID := hex.EncodeToString(k)
 			outs := DeserializeTxOutputs(v)
 			
 			//pour chaque output non dépnesé de la tx
@@ -46,9 +40,11 @@ func (utxo *UTXOSet) FindSpendableOutputsByPubKeyHash(pubKeyHash []byte, amount 
 				//si l'output est locké avec la pubKeyHash passé en paramètre
 				//et que le montant accumulé est inférieur au montant passé en paramètre
 				if out.IsLockedWithPubKeyHash(pubKeyHash) == true && accumulated < amount{
-					accumulated += util.DecodeInt(out.Value)
+					value := util.DecodeInt(out.Value)
+					accumulated += value
 					//on ajoute l'output à la liste des utxo
-					unspentOutputs[txID] = append(unspentOutputs[txID], outIdx)
+					usOutput := UnspentOutput{k, outIdx, value}
+					unspentOutputs = append(unspentOutputs, usOutput)
 				}
 			}
 		}
@@ -60,21 +56,18 @@ func (utxo *UTXOSet) FindSpendableOutputsByPubKeyHash(pubKeyHash []byte, amount 
 	return accumulated, unspentOutputs
 }
 
-//Recupère la totalité des outputs non dépensé
-//correspondant aux wallets locaux
-func (utxo *UTXOSet) FindAllSpendableOutputs() (int, []SpendableOutput) {
-	var spendables []SpendableOutput
-	var total = 0
+/*
+func (utxo *UTXOSet) FindSpendableOutputs(spendables []SpendableOutput) [] {
 
-	//pour chaque wallet stored
-	for _, w := range wallet.WalletList {
-		s := SpendableOutput{PubKeyHash: util.Sha256(w.PublicKey)}
-		s.Amount, s.Outputs = utxo.FindSpendableOutputsByPubKeyHash(s.PubKeyHash, MAX_COIN)
-		spendables = append(spendables, s)
-		total += s.Amount
-	}
-	return total, spendables
+
+
+	//list de pubkey
+	//list d'output dans une tx
+	//amount
+	//wallet
+
 }
+*/
 
 //Reindex la liste des utxo dans le bucket des UTXOS
 func (utxo *UTXOSet) Reindex() error {
@@ -126,3 +119,39 @@ func (utxo *UTXOSet) CountTx() int {
 	})
 	return i
 }
+
+/*
+func SpendableOutputSliceToMap(spendables []SpendableOutput) map[string][]int {
+	unspentOutputs := make(map[string][]int)
+
+	for _, spendable := range spendables {
+		for txID, out := range spendable.Outputs {
+			tmp := unspentOutputs[txID]
+			tmp = append(tmp, out...)
+			unspentOutputs[txID] = tmp
+		}
+	}
+	return unspentOutputs
+}
+
+func FindSpendableInArrayByInput(spendables []SpendableOutput, in Input) *SpendableOutput{
+	txID := hex.EncodeToString(in.PrevTransactionHash)
+	fmt.Println(txID, vOUT)
+
+	for _, spendable := range spendables {
+
+		for txid, voutList := range spendable.Outputs {
+			fmt.Println(txid)
+			if txid == txID {
+				fmt.Println(voutList)
+				for _, vout := range voutList {
+					if vout == vOUT {
+						return &spendable
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+*/

@@ -64,7 +64,7 @@ func TxCreateCli(){
 	handleParsingError(TxCMD)
 
 	if *to != "" && *amount > 0 {
-		//send
+		fmt.Println(blockchain.CreateTx(*to, *amount))
 	} else {
 		TxCreateUsage()
 	}

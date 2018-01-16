@@ -13,6 +13,7 @@ func (cli *CLI) printUsage() {
 	fmt.Println("Commands:")
 	fmt.Println(" wallet \t Manage local wallets")
 	fmt.Println(" blockchain \t Manage blockchain")
+	fmt.Println(" tx \t Manage transactions")
 }
 
 //Verifie les arguments

@@ -2,10 +2,15 @@ package blockchain
 
 import (
 	"log"
+	"crypto/ecdsa"
+	"crypto/rand"
 	"letsgo/script"
 	"bytes"
 	"encoding/gob"
 	"letsgo/util"
+	"os"
+	"letsgo/wallet"
+	"fmt"
 )
 
 type Transaction struct {
@@ -17,7 +22,7 @@ type Transaction struct {
 	LockTime []byte //[4]
 }
 
-//Serialise une transaction
+//Transaction -> []byte
 func (tx Transaction) Serialize() []byte {
 	var encoded bytes.Buffer
 
@@ -84,5 +89,69 @@ func GetTxByHash(hash []byte) (*Transaction, *Block, int) {
 }
 
 func CreateTx(to string, amount int) *Transaction {
-	return nil
+	var inputs []Input
+	var outputs []Output
+
+	if amount > Walletinfo.Amount {
+		log.Println("You don't have enough coin to perform this transaction.")
+		os.Exit(-1)
+	}
+
+	toPubKeyHash := wallet.GetPubKeyHashFromAddress([]byte(to))
+	amountGot, localUnspents := Walletinfo.GetLocalUnspentOutputs(amount)
+	
+	for _, localUs := range localUnspents {
+		var emptyScript [][]byte
+		input := NewTxInput(localUs.TxID, util.EncodeInt(localUs.Output), emptyScript)
+		inputs = append(inputs, input)
+	}
+
+	out := NewTxOutput(script.Script.LockingScript(toPubKeyHash), amount)
+	outputs = append(outputs, out)
+	
+	if amountGot > amount {
+		//on utilise la clé public du dernier output ajouté à la liste
+		fromPubKeyHash := util.Sha256(localUnspents[len(localUnspents) - 1].Wallet.PublicKey)
+		exc := NewTxOutput(script.Script.LockingScript(fromPubKeyHash), amountGot - amount)
+		outputs = append(outputs, exc)
+	}
+	
+	tx := &Transaction{
+		Version: []byte{VERSION},
+		InCounter: util.EncodeInt(len(inputs)),
+		Inputs: inputs,
+		OutCounter: util.EncodeInt(len(outputs)),
+		Outputs: outputs,
+	}
+	tx.Sign(localUnspents, toPubKeyHash)
+	return tx
+	
+}
+
+
+func (tx *Transaction) Sign(localUnspents []LocalUnspentOutput, to []byte){
+	if tx.IsCoinbase(){
+		return
+	}
+
+	prevTXs := make(map[string]*Transaction)
+	for _, in := range tx.Inputs {
+		prevTxID, prevTx := in.GetPrevTx()
+		prevTXs[prevTxID] = prevTx
+	}
+	var txCopy *Transaction
+	txCopy = tx
+	
+	for idx, _ := range txCopy.Inputs {
+		//transaction to string
+		dataToSign := fmt.Sprintf("%x\n", txCopy)
+
+		r, s, err := ecdsa.Sign(rand.Reader, &localUnspents[idx].Wallet.PrivateKey, []byte(dataToSign))
+		if err != nil {
+			fmt.Println(err)
+			log.Panic(err)
+		}
+		signature := append(r.Bytes(), s.Bytes()...)
+		tx.Inputs[idx] = NewTxInput(tx.Inputs[idx].PrevTransactionHash, tx.Inputs[idx].Vout, script.Script.UnlockingScript(signature, to))
+	}
 }

@@ -2,7 +2,7 @@ package blockchain
 
 import (
 	"letsgo/util"
-	"strconv"
+	"encoding/hex"
 )
 
 type TxInputs struct {
@@ -21,8 +21,13 @@ func NewTxInput(PrevTransactionHash []byte, Vout []byte, ScriptSig [][]byte) Inp
 	in := Input{
 		PrevTransactionHash: PrevTransactionHash,
 		Vout: util.EncodeInt(-1),
-		TxInScriptLen: []byte(strconv.Itoa(util.LenDoubleSliceByte(ScriptSig))),
+		TxInScriptLen: util.EncodeInt(util.LenDoubleSliceByte(ScriptSig)),
 		ScriptSig: ScriptSig,
 	}
 	return in
+}
+
+func (in *Input) GetPrevTx() (string, *Transaction) {
+	tx, _, _ := GetTxByHash(in.PrevTransactionHash)
+	return hex.EncodeToString(tx.GetHash()), tx
 }

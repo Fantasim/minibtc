@@ -30,9 +30,7 @@ var (
 	//Hauteur courante de la blockchain
 	BC_HEIGHT int
 	//Liste des outputs non depensés liés aux wallets locaux
-	UnSpents []SpendableOutput
-	//Total des montants disponible sur chacun des wallets locaux
-	AmountAvailable int
+	Walletinfo *WalletInfo
 )
 
 type Blockchain struct {
@@ -45,7 +43,7 @@ func loadSpendableOutputs(){
 	for wallet.WalletLoaded == false {
 		time.Sleep(100 * time.Millisecond)
 	}
-	AmountAvailable, UnSpents = UTXO.FindAllSpendableOutputs()
+	Walletinfo = GetWalletInfo()
 }
 
 func init(){
