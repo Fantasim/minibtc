@@ -4,45 +4,54 @@ import (
 	"letsgo/wallet"
 	"unsafe"
 	"bytes"
+	"github.com/boltdb/bolt"
 	"encoding/gob"
 	"time"
 	"letsgo/util"
 	"log"
+	"fmt"
 )
 
+//HashPrevBlock du block genèse
 var GENESIS_BLOCK_PREVHASH = []byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 
+//Structure d'un Block
 type Block struct {
-	Size []byte
-	Header BlockHeader
-	Counter uint
-	Transactions []Transaction
+	Size []byte //taille du block en octet
+	Header BlockHeader //Header du block
+	Counter uint //nombre de transaction
+	Transactions []Transaction //liste de transaction
 }
 
+//Structure du header d'un block
 type BlockHeader struct{
-	Version []byte
-	HashPrevBlock []byte
-	HashMerkleRoot []byte
-	Time []byte
-	Bits []byte
-	Nonce []byte
+	Version []byte //version du noeud créateur du block
+	HashPrevBlock []byte //hash du dernier block de la blockchain
+	HashMerkleRoot []byte //merkleroot des transactions du block
+	Time []byte //time unix de la création du block 
+	Bits []byte //niveau de difficulté de minage
+	Nonce []byte //nombre d'iteration nécéssaire pour trouver la solution de minage
 }
-
 
 //Créer un block genese
-func NewGenesisBlock() Block {
+func NewGenesisBlock(address string) Block {
 
-	pubKey := wallet.GetPubKeyFromAddress("16caHAfC5FpWWtmXTqphtQyRUXN2DgorJ3")
-	signature, _  := wallet.SignPrivateKey(pubKey)
-	tx := NewCoinbaseTx(pubKey, signature)
+	//récupère la clé public liée à l'address
+	pubKey := wallet.GetPubKeyFromAddress(address)
+	//créer une nouvelle transaction coinbase
+	tx := NewCoinbaseTx(pubKey)
 
+	//créer un nouveau block et ajoute la structure
 	block := Block{
 		Transactions: []Transaction{tx},
 		Counter: 1,
 	}
 
+	//recupère le merkle root de la liste de transaction
+	//contenant uniquement la transaction coinbase
 	HashMerkleRoot := NewMerkleTree([][]byte{tx.Serialize()}).RootNode.Data
 
+	//Créer le header du block
 	header := BlockHeader{
 		Version: []byte{VERSION},
 		HashPrevBlock: GENESIS_BLOCK_PREVHASH,
@@ -51,26 +60,19 @@ func NewGenesisBlock() Block {
 		Bits:  util.EncodeInt(1),
 	}
 	block.Header = header
+	//Créer une target de proof of work
 	pow := NewProofOfWork(&block)
+	//cherche le nonce correspondant à la target
 	nonce, _, err := pow.Run()
 	if err != nil {
 		log.Panic(err)
 	}
+	//ajoute le nonce au header
 	block.Header.Nonce = util.EncodeInt(nonce)
+	//ajoute la taille total du block
 	block.Size = util.EncodeInt(int(unsafe.Sizeof(block)))
 	return block
 }
-
-/*
-//Retourne le block genese à partir de son hex
-func NewGenesisBlock() Block {
-	blockStr := "46ff8103010105426c6f636b01ff82000104010453697a65010a00010648656164657201ff84000107436f756e746572010600010c5472616e73616374696f6e7301ff9200000066ff830301010b426c6f636b48656164657201ff84000106010756657273696f6e010a00010d4861736850726576426c6f636b010a00010e486173684d65726b6c65526f6f74010a00010454696d65010a00010442697473010a0001054e6f6e6365010a00000027ff91020101185b5d626c6f636b636861696e2e5472616e73616374696f6e01ff920001ff86000068ff850301010b5472616e73616374696f6e01ff86000106010756657273696f6e010a000109496e436f756e746572010a000106496e7075747301ff8c00010a4f7574436f756e746572010a0001074f75747075747301ff900001084c6f636b54696d65010a00000021ff8b020101125b5d626c6f636b636861696e2e496e70757401ff8c0001ff88000055ff8703010105496e70757401ff880001040113507265765472616e73616374696f6e48617368010a000104566f7574010a00010d5478496e5363726970744c656e010a00010953637269707453696701ff8a00000017ff89020101095b5d5b5d75696e743801ff8a00010a000022ff8f020101135b5d626c6f636b636861696e2e4f757470757401ff900001ff8e000043ff8d030101064f757470757401ff8e000103010556616c7565010a00010e54785363726970744c656e677468010a00010c5363726970745075624b657901ff8a000000fe011eff8201033230300101010001200000000000000000000000000000000000000000000000000000000000000000012097fd53e6f4677253826c6f9e772a75ac7049962bb73b7dba67f403c7e2bad625010a313531353935353134360101310107323635323432340001010101010100010131010102022d3101023635010240b39cc446ceac983bd1d9a167920affb9f264fc8e44e4266efcda46fe32a13d73cbcf337561b5434e71ba64330b3e1b9b880118f6944e6114c87cb2ac8bd6513b01ac000101310101010835303030303030300102363401014028f06c3debd5047a16336473a58f413a2577fcbbaeb8a31799fa0c50400f1cfbb41284e7697bfdb630acabdfbbec9e3db224f14e18acfcd6e9689ca7f66bd62e000101000000"	
-	b, err := hex.DecodeString(blockStr)
-	if err != nil {
-		log.Panic(err)
-	}
-	return *DeserializeBlock(b)
-}*/
 
 //Retourne le hash d'un block
 func (b *Block) GetHash() []byte {
@@ -112,4 +114,84 @@ func DeserializeBlock(d []byte) *Block {
 	}
 
 	return &block
+}
+
+func NewBlock(txs []Transaction, prevBlockHash []byte) *Block{
+	block := &Block{}
+	
+	//Récupère un wallet aléatoire vers qui envoyer la transaction coinbase
+	w := wallet.RandomWallet()
+
+	fmt.Println(string(w.GetAddress()))
+	//Créer une transaction coinbase
+	coinbaseTx := NewCoinbaseTx(w.PublicKey)
+
+	//Prepend la transaction coinbase à liste de transaction
+	txs = append([]Transaction{coinbaseTx}, txs...)
+
+	block.Transactions = txs
+	block.Counter = uint(len(txs))
+
+	//[]Transaction to [][]byte
+	txsDoubleByteArray := TransactionToByteDoubleArray(txs)
+
+	//recupère le merkle root de la liste de transaction
+	HashMerkleRoot := NewMerkleTree(txsDoubleByteArray).RootNode.Data
+
+	//Header du block
+	header := BlockHeader{
+		Version: []byte{VERSION},
+		HashPrevBlock: prevBlockHash,
+		HashMerkleRoot: HashMerkleRoot,
+		Time:  util.EncodeInt(int(time.Now().Unix())),
+		Bits:  util.EncodeInt(1),
+	}
+	block.Header = header
+
+
+	//Créer une target de proof of work
+	pow := NewProofOfWork(block)
+	//cherche le nonce correspondant à la target
+	nonce, _, err := pow.Run()
+	if err != nil {
+		log.Panic(err)
+	}
+	//ajoute le nonce au header
+	block.Header.Nonce = util.EncodeInt(nonce)
+	//ajoute la taille total du block
+	block.Size = util.EncodeInt(int(unsafe.Sizeof(block)))
+	return block
+}
+
+func (block *Block) GetBlockHeight() int {
+	be := NewExplorer()
+	var i = 0
+	for {
+		bl := be.Next();
+		if bytes.Compare(bl.GetHash(), block.GetHash()) == 0 {
+			return BC_HEIGHT - i
+		}
+		if bl == nil {
+			return -1
+		}
+		i++
+	}
+	return i
+}
+
+func GetBlockByHash(hash []byte) (*Block, error) {
+	var block *Block
+	
+	db := BC.DB
+
+	err := db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(BLOCK_BUCKET))
+		encodedBlock := b.Get(hash)
+		block = DeserializeBlock(encodedBlock)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
 }

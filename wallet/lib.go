@@ -6,6 +6,7 @@ import (
 	"errors"
 	"crypto/rand"
 	"crypto/ecdsa"
+	mathr "math/rand"
 )
 
 //Vérifie qu'une adresse est correcte (processus utilisé par le BTC)
@@ -33,15 +34,12 @@ func IsAddressStored(addr string) bool {
 //Signe une data vide à partir de la clé privée correspondant
 //a la clé publique sauvegarder dans le wallet
 //retourne la signature
-func SignPrivateKey(pubKey []byte) ([]byte, error) {
-	w := Wallet{PublicKey: pubKey}
-	addr := w.GetAddress()
-
-	if IsAddressStored(string(addr)) == false {
+func SignPrivateKey(addr string) ([]byte, error) {
+	if IsAddressStored(addr) == false {
 		return []byte{}, errors.New("public key doesn't match with a private key stored")
 	}
 	
-	w = *WalletList[string(addr)]
+	w := *WalletList[addr]
 	
 	r, s, err := ecdsa.Sign(rand.Reader, &w.PrivateKey, []byte{})
 	if err != nil {
@@ -49,4 +47,17 @@ func SignPrivateKey(pubKey []byte) ([]byte, error) {
 	}
 	signature := append(r.Bytes(), s.Bytes()...)
 	return signature, nil
+}
+
+//Retourne un wallet aleatoire parmis les wallets locaux
+func RandomWallet() *Wallet {
+	random := mathr.Intn(len(WalletList) - 1)
+	var i = 0
+	for _, w := range WalletList {
+		if i == random {
+			return w
+		}
+		i++
+	}
+	return nil
 }

@@ -36,7 +36,7 @@ func (be *BlockchainExplorer) Next() *Block{
 	if err != nil {
 		log.Panic(err)
 	}
-
+	
 	be.CurrentHash = block.Header.HashPrevBlock
 	return block
 }

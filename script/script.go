@@ -3,6 +3,7 @@ package script
 import (
 	"letsgo/util"
 	"fmt"
+	"encoding/hex"
 )
 
 var Script = new(script)
@@ -69,6 +70,19 @@ func (s *script) FourEqualFive() [][]byte {
 		append([]byte{}, OP_DATA_5),
 		append([]byte{}, OP_EQUALVERIFY),
 	)
+}
+
+func (s *script) String(srpt [][]byte) string {
+	ret := ""
+	for _, elem := range srpt {
+		if len(elem) == 1 {
+			ret += opcodeArray[int(elem[0])].name
+		} else {
+			ret += hex.EncodeToString(elem)
+		}
+		ret += " "
+	}
+	return ret
 }
 
 func TestScript(s func() [][]byte){

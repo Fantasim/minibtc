@@ -6,7 +6,6 @@ import (
 	"encoding/gob"
 	"log"
 	"letsgo/script"
-	"fmt"
 )
 
 type TxOutputs struct {
@@ -21,7 +20,6 @@ type Output struct {
 
 //Retourne un nouvel output de tx
 func NewTxOutput(scriptPubKey [][]byte, value int) Output {
-	fmt.Println(util.EncodeInt(value))
 	txo := Output{
 		Value: util.EncodeInt(value),
 		TxScriptLength: util.EncodeInt(util.LenDoubleSliceByte(scriptPubKey)),
@@ -35,6 +33,11 @@ func (output *Output) IsLockedWithPubKeyHash(pubKeyHash []byte) bool {
 	//on génère un scriptPubKey de type Pay-to-PubkeyHash
 	//avec la clé public hashée passée en paramètre
 	scriptPubKey := script.Script.LockingScript(pubKeyHash)
+
+	/*if util.DecodeInt(output.Value) == 100000 {
+		fmt.Println("1", script.Script.String(scriptPubKey))
+		fmt.Println("2", script.Script.String(output.ScriptPubKey))	
+	}*/
 
 	//si la longueur des deux scripts est différente
 	if len(output.ScriptPubKey) != len(scriptPubKey) {

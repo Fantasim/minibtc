@@ -6,9 +6,11 @@ import (
 	"log"
 	"fmt"
 	"encoding/hex"
-	"letsgo/util"
+	//"letsgo/util"
 	"letsgo/wallet"
 	"time"
+	"bytes"
+	"errors"
 )
 
 const (
@@ -16,17 +18,21 @@ const (
 	REWARD = 50000000
 	//total supply de la coin
 	MAX_COIN = 21000000000000
+	//Version du client
 	VERSION = byte(0x00)
+	//Nom du bucket des blocks
 	BLOCK_BUCKET = "blocks"
 )
 
 var (
-	//Identifiant du noeud
+	// du noeud
 	NODE_ID string
 
+	//Path vers le fichier DB
 	DB_FILE = "/Users/fantasim/go/src/letsgo/assets/db/"
 
 	BC *Blockchain 
+
 	//Hauteur courante de la blockchain
 	BC_HEIGHT int
 	//Liste des outputs non depensés liés aux wallets locaux
@@ -53,13 +59,15 @@ func init(){
 		fmt.Printf("Vous devez créer une variable d'environnement correspondant à l'ID de votre noeud.\nExemple : `export NODE_ID=10000`\n\n")
 		os.Exit(1)
 	}
+	//Ajoute la string de la variable d'environnement au path du fichier DB
 	DB_FILE += NODE_ID
 	//si la db existe déjà, on charge la blockchain
 	if dbExists() == true {
+		//charge le fichier db
 		loadDB()
 	} else {
 		//block genèse
-		genesis := NewGenesisBlock()
+		genesis := NewGenesisBlock("16caHAfC5FpWWtmXTqphtQyRUXN2DgorJ3")
 		//sinon on créer une blockchain à partir d'un block genèse
 		if err := CreateBlockchainDB(genesis); err != nil {
 			log.Panic(err)
@@ -89,7 +97,7 @@ func (b *Blockchain) getHeight() int {
 
 //Récupère la totalité des utxos de la chain
 func (b *Blockchain) FindUTXO() map[string]TxOutputs {
-	UTXO := make(map[string]TxOutputs)
+	utxo := make(map[string]TxOutputs)
 	spentTXOs := make(map[string][]int)
 	e := NewExplorer()
 	
@@ -107,7 +115,7 @@ func (b *Blockchain) FindUTXO() map[string]TxOutputs {
 			Outputs:
 				//parcours la liste des outputs de la tx
 				for idx, out := range tx.Outputs {
-					//si l'output a été ajouté à la liste des transaction dépensé
+					//si un output dans la même transaction a déjà été ajouté dans la liste des spents txos
 					if spentTXOs[txID] != nil {
 						//pour chaque outputs correspondant à la transaction, ayant été dépensé
 						for _, spentOutIdx := range spentTXOs[txID] {
@@ -117,21 +125,64 @@ func (b *Blockchain) FindUTXO() map[string]TxOutputs {
 							}
 						}
 					}
-					outs := UTXO[txID]
+					outs := utxo[txID]
 					outs.Outputs = append(outs.Outputs, out)
-					UTXO[txID] = outs
+					utxo[txID] = outs
 				}
 				//si la transaction n'est pas coinbase
 				if tx.IsCoinbase() == false {
 					//pour chaque input de la tx
-					for _, in := range tx.Inputs {
-						//On récupère la transaction précédente 
+					for idx, in := range tx.Inputs {
+						//On récupère la transaction précédente
 						prevHash := hex.EncodeToString(in.PrevTransactionHash)
 						//On ajoute l'output lié à cet input dans la liste des outputs depensés
-						spentTXOs[prevHash] = append(spentTXOs[prevHash], util.DecodeInt(in.Vout))
+						spentTXOs[prevHash] = append(spentTXOs[prevHash], idx)
 					}
 				}
 		}
 	}
-	return UTXO
+	return utxo
 } 
+
+func (b *Blockchain) AddBlock(block *Block) error {
+	db := BC.DB
+	blockHash := block.GetHash()
+
+	err := db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(BLOCK_BUCKET))
+		//recupere dans la db un block correspondant au hash du nouveau block
+		blockInDb := b.Get(blockHash)
+		//si il existe deja
+		if blockInDb != nil {
+			fmt.Println("Le block", hex.EncodeToString(blockHash), "existe deja")
+			return nil
+		}
+		//recupere le hash du block ayant la plus hauteur hauteur
+		lastHash := b.Get([]byte("l"))
+		lastBlockData := b.Get(lastHash)
+		lastBlock := DeserializeBlock(lastBlockData)
+		lastBlockHash := lastBlock.GetHash()
+
+		if bytes.Compare(block.Header.HashPrevBlock, lastBlockHash) != 0 {
+			return errors.New("New block is not the tip's next block")
+		}
+
+		//ajoute le block dans la db
+		err := b.Put(blockHash, block.Serialize())
+		if err != nil {
+			return err
+		}
+		err = b.Put([]byte("l"), blockHash)
+		if err != nil {
+			log.Panic(err)
+		}
+		BC.Tip = blockHash
+		return nil
+	})
+	if err == nil {
+		BC_HEIGHT += 1
+		UTXO.Reindex()
+		loadSpendableOutputs()
+	}
+	return err
+}

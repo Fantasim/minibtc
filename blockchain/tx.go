@@ -36,10 +36,10 @@ func (tx Transaction) Serialize() []byte {
 }
 
 //Créer une transaction coinbase
-func NewCoinbaseTx(toPubKey, signature []byte) Transaction {
+func NewCoinbaseTx(toPubKey []byte) Transaction {
 	var empty [][]byte
 	txIn := NewTxInput([]byte{}, util.EncodeInt(-1), empty)
-	txOut := NewTxOutput(script.Script.LockingScript(util.Sha256(toPubKey)), REWARD)
+	txOut := NewTxOutput(script.Script.LockingScript(wallet.HashPubKey(toPubKey)), REWARD)
 
 	tx := Transaction{
 		Version: []byte{VERSION},
@@ -92,30 +92,46 @@ func CreateTx(to string, amount int) *Transaction {
 	var inputs []Input
 	var outputs []Output
 
+	//Si le montant d'envoie est inférieur au total des wallets locaux
 	if amount > Walletinfo.Amount {
 		log.Println("You don't have enough coin to perform this transaction.")
 		os.Exit(-1)
 	}
 
+	//On récupère la clé public hashée à partir de l'address 
+	//à qui on envoie
 	toPubKeyHash := wallet.GetPubKeyHashFromAddress([]byte(to))
+
+	//on récupère une liste d'output qui totalise le montant a envoyer
+	//on récupère aussi amountGot, qui est le total de la somme de value des outputs
+	//Cette variable est indispensable, car si la valeur total obtenu est supérieur
+	//au montant d'envoie, on doit transferer l'excédant sur le wallet du créateur de la tx
 	amountGot, localUnspents := Walletinfo.GetLocalUnspentOutputs(amount)
-	
+
+	//Pour chaque output
 	for _, localUs := range localUnspents {
 		var emptyScript [][]byte
+		//on génère un input à partir de l'output
 		input := NewTxInput(localUs.TxID, util.EncodeInt(localUs.Output), emptyScript)
+		//et on l'ajoute à la liste
 		inputs = append(inputs, input)
 	}
 
+	//on génére l'output vers l'address de notre destinaire
 	out := NewTxOutput(script.Script.LockingScript(toPubKeyHash), amount)
 	outputs = append(outputs, out)
 	
+	//Si le montant récupére par les wallets locaux est supérieur
+	//au montant que l'on décide d'envoyer
 	if amountGot > amount {
 		//on utilise la clé public du dernier output ajouté à la liste
-		fromPubKeyHash := util.Sha256(localUnspents[len(localUnspents) - 1].Wallet.PublicKey)
+		fromPubKeyHash := wallet.HashPubKey(localUnspents[len(localUnspents) - 1].Wallet.PublicKey)
+		//on génére un output vers le dernier output de la liste d'utxo récupéré
+		//et on envoie l'excédant
 		exc := NewTxOutput(script.Script.LockingScript(fromPubKeyHash), amountGot - amount)
 		outputs = append(outputs, exc)
 	}
-	
+
 	tx := &Transaction{
 		Version: []byte{VERSION},
 		InCounter: util.EncodeInt(len(inputs)),
@@ -123,35 +139,53 @@ func CreateTx(to string, amount int) *Transaction {
 		OutCounter: util.EncodeInt(len(outputs)),
 		Outputs: outputs,
 	}
+	
+	//on signe la transaction
 	tx.Sign(localUnspents, toPubKeyHash)
 	return tx
 	
 }
 
-
+//Signe une transaction avec le clé privé
 func (tx *Transaction) Sign(localUnspents []LocalUnspentOutput, to []byte){
+	//si la transaction est coinbase
 	if tx.IsCoinbase(){
 		return
 	}
-
+	
 	prevTXs := make(map[string]*Transaction)
+	//on récupère la liste des transactions précédant
+	//la liste des inputs de la tx
 	for _, in := range tx.Inputs {
 		prevTxID, prevTx := in.GetPrevTx()
 		prevTXs[prevTxID] = prevTx
 	}
+
+	//on fait une copie de la transaction
 	var txCopy *Transaction
 	txCopy = tx
 	
 	for idx, _ := range txCopy.Inputs {
-		//transaction to string
+		//on transforme la transaction en string
 		dataToSign := fmt.Sprintf("%x\n", txCopy)
 
+		//on signe les données
 		r, s, err := ecdsa.Sign(rand.Reader, &localUnspents[idx].Wallet.PrivateKey, []byte(dataToSign))
 		if err != nil {
 			fmt.Println(err)
 			log.Panic(err)
 		}
 		signature := append(r.Bytes(), s.Bytes()...)
+		//on update l'input avec un nouvel input identique 
+		//mais comprenant le bon scriptSig
 		tx.Inputs[idx] = NewTxInput(tx.Inputs[idx].PrevTransactionHash, tx.Inputs[idx].Vout, script.Script.UnlockingScript(signature, to))
 	}
+}
+
+func TransactionToByteDoubleArray(txs []Transaction) [][]byte {
+	ret := make([][]byte, len(txs))
+	for idx, tx := range txs {
+		ret[idx] = tx.Serialize()
+	}
+	return ret
 }

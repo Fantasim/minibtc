@@ -5,7 +5,6 @@ import (
 	"letsgo/util"
 	"log"
 	//"letsgo/wallet"
-	//"fmt"
 	"encoding/hex"
 )
 
@@ -22,7 +21,7 @@ type UTXOSet struct {}
 
 //Récupère une liste d'outputs non dépensé locké avec le pubKeyHash
 //d'un montant supérieur ou égal au montant passé en paramètre
-func (utxo *UTXOSet) FindSpendableOutputsByPubKeyHash(pubKeyHash []byte, amount int ) (int, []UnspentOutput) {
+func (utxo *UTXOSet) FindSpendableOutputsByPubKeyHash(pubKeyHash []byte, amount int) (int, []UnspentOutput) {
 	var unspentOutputs []UnspentOutput
 	accumulated := 0
 	db := BC.DB
@@ -39,6 +38,7 @@ func (utxo *UTXOSet) FindSpendableOutputsByPubKeyHash(pubKeyHash []byte, amount 
 			for outIdx, out := range outs.Outputs {
 				//si l'output est locké avec la pubKeyHash passé en paramètre
 				//et que le montant accumulé est inférieur au montant passé en paramètre
+				
 				if out.IsLockedWithPubKeyHash(pubKeyHash) == true && accumulated < amount{
 					value := util.DecodeInt(out.Value)
 					accumulated += value
@@ -55,19 +55,6 @@ func (utxo *UTXOSet) FindSpendableOutputsByPubKeyHash(pubKeyHash []byte, amount 
 	}
 	return accumulated, unspentOutputs
 }
-
-/*
-func (utxo *UTXOSet) FindSpendableOutputs(spendables []SpendableOutput) [] {
-
-
-
-	//list de pubkey
-	//list d'output dans une tx
-	//amount
-	//wallet
-
-}
-*/
 
 //Reindex la liste des utxo dans le bucket des UTXOS
 func (utxo *UTXOSet) Reindex() error {
@@ -119,39 +106,3 @@ func (utxo *UTXOSet) CountTx() int {
 	})
 	return i
 }
-
-/*
-func SpendableOutputSliceToMap(spendables []SpendableOutput) map[string][]int {
-	unspentOutputs := make(map[string][]int)
-
-	for _, spendable := range spendables {
-		for txID, out := range spendable.Outputs {
-			tmp := unspentOutputs[txID]
-			tmp = append(tmp, out...)
-			unspentOutputs[txID] = tmp
-		}
-	}
-	return unspentOutputs
-}
-
-func FindSpendableInArrayByInput(spendables []SpendableOutput, in Input) *SpendableOutput{
-	txID := hex.EncodeToString(in.PrevTransactionHash)
-	fmt.Println(txID, vOUT)
-
-	for _, spendable := range spendables {
-
-		for txid, voutList := range spendable.Outputs {
-			fmt.Println(txid)
-			if txid == txID {
-				fmt.Println(voutList)
-				for _, vout := range voutList {
-					if vout == vOUT {
-						return &spendable
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-*/

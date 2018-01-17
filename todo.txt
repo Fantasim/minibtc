@@ -1,0 +1,5 @@
+- refaire la fonction findUTXO dans le fichier blockchain.go
+
+- lors de la création d'une tx, vérifier que l'address d'envoie ne corresponde pas a un wallet local. Si oui séléctionner les bonnes adresses.
+
+- lors de la création d'une tx, ajoute une variable au cli permettant de choisir l'address d'envoie

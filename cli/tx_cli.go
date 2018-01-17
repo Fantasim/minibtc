@@ -6,6 +6,7 @@ import (
 	"letsgo/blockchain"
 	"letsgo/util"
 	"encoding/hex"
+	"letsgo/script"
 )
 
 func TxPrintUsage(){
@@ -28,16 +29,18 @@ func printTx(tx *blockchain.Transaction, block *blockchain.Block, height int){
 	fmt.Printf("    Coinbase: %t\n", tx.IsCoinbase())
 	fmt.Printf("    Version: %x\n", tx.Version)
 	fmt.Printf("    Value %d\n\n", tx.GetValue())
-	fmt.Printf("    %d inputs:\n\n", len(tx.Inputs))
+	fmt.Printf("    %d inputs:\n", len(tx.Inputs))
 	for idx, in := range tx.Inputs {
 		fmt.Printf("    === [%d] ===\n", idx)
 		fmt.Printf("    PrevHash: %x\n", in.PrevTransactionHash)
 		fmt.Printf("    Vout: %d\n", util.DecodeInt(in.Vout))
+		fmt.Printf("    ScriptSig: %s\n\n", script.Script.String(in.ScriptSig))
 	}
-	fmt.Printf("    %d outputs:\n\n", len(tx.Outputs))
+	fmt.Printf("    %d outputs:\n", len(tx.Outputs))
 	for idx, out := range tx.Outputs {
 		fmt.Printf("    === [%d] ===\n", idx)
 		fmt.Printf("    Value: %d\n", util.DecodeInt(out.Value))
+		fmt.Printf("    ScriptPubKey: %s\n\n", script.Script.String(out.ScriptPubKey))
 	}
 }
 
@@ -64,7 +67,13 @@ func TxCreateCli(){
 	handleParsingError(TxCMD)
 
 	if *to != "" && *amount > 0 {
-		fmt.Println(blockchain.CreateTx(*to, *amount))
+		fmt.Println(*amount)
+		tx := blockchain.CreateTx(*to, *amount)
+		block := blockchain.NewBlock([]blockchain.Transaction{*tx}, blockchain.BC.Tip)
+		err := blockchain.BC.AddBlock(block)
+		if err != nil {
+			fmt.Println("Block miné")
+		}
 	} else {
 		TxCreateUsage()
 	}
