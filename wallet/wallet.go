@@ -5,6 +5,7 @@ import (
 	"letsgo/util"
 	"os"
 	"fmt"
+	"bytes"
 )
 
 const (
@@ -32,8 +33,9 @@ func init(){
 	}
 	WALLET_FILE += NODE_ID
 	WalletList = make(map[string]*Wallet)
-	LoadFromFile()
-	WalletLoaded = true
+	if LoadFromFile() == nil {
+		WalletLoaded = true
+	}
 }
 
 //Gènere un nouveau wallet
@@ -74,12 +76,21 @@ func GetPubKeyFromAddress(addr string) []byte {
 	return WalletList[addr].PublicKey
 }
 
+func GetWalletByPubKeyHash(pubKeyHash []byte) *Wallet {
+	for _, w := range WalletList {
+		if bytes.Compare(HashPubKey(w.PublicKey), pubKeyHash) == 0 {
+			return w
+		}
+	}
+	return nil
+}
+
+
 func GetPubKeyHashFromAddress(address []byte) []byte {
 	pubKeyHash := util.Base58Decode(address)
 	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-AddressChecksumLen]
 	return pubKeyHash
 }
-
 
 //Recupere le checksum d'une clé publique (processus utilisé par le BTC)
 func checksum(payload []byte) []byte {

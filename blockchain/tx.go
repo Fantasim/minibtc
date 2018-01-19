@@ -88,25 +88,31 @@ func GetTxByHash(hash []byte) (*Transaction, *Block, int) {
 	return nil, nil, -1
 }
 
-func CreateTx(to string, amount int) *Transaction {
+func CreateTx(from string, to string, amount int) *Transaction {
 	var inputs []Input
 	var outputs []Output
-
-	//Si le montant d'envoie est inférieur au total des wallets locaux
-	if amount > Walletinfo.Amount {
-		log.Println("You don't have enough coin to perform this transaction.")
-		os.Exit(-1)
-	}
+	var localUnspents []LocalUnspentOutput
+	var amountGot int
 
 	//On récupère la clé public hashée à partir de l'address 
 	//à qui on envoie
 	toPubKeyHash := wallet.GetPubKeyHashFromAddress([]byte(to))
 
-	//on récupère une liste d'output qui totalise le montant a envoyer
-	//on récupère aussi amountGot, qui est le total de la somme de value des outputs
-	//Cette variable est indispensable, car si la valeur total obtenu est supérieur
-	//au montant d'envoie, on doit transferer l'excédant sur le wallet du créateur de la tx
-	amountGot, localUnspents := Walletinfo.GetLocalUnspentOutputs(amount)
+	if from == "" {
+		//on récupère une liste d'output qui totalise le montant a envoyer
+		//on récupère aussi amountGot, qui est le total de la somme de value des outputs
+		//Cette variable est indispensable, car si la valeur total obtenu est supérieur
+		//au montant d'envoie, on doit transferer l'excédant sur le wallet du créateur de la tx
+		amountGot, localUnspents = Walletinfo.GetLocalUnspentOutputs(amount, to)
+	} else {
+		amountGot, localUnspents = UTXO.GetLocalUnspentOutputsByPubKeyHash(wallet.GetPubKeyHashFromAddress([]byte(from)), amount)
+	}
+
+	//Si le montant d'envoie est inférieur au total des wallets locaux
+	if (from == "" && amount > Walletinfo.Amount) || (from != "" && amount > amountGot) {
+		log.Println("You don't have enough coin to perform this transaction.")
+		os.Exit(-1)
+	}
 
 	//Pour chaque output
 	for _, localUs := range localUnspents {
@@ -139,7 +145,7 @@ func CreateTx(to string, amount int) *Transaction {
 		OutCounter: util.EncodeInt(len(outputs)),
 		Outputs: outputs,
 	}
-	
+
 	//on signe la transaction
 	tx.Sign(localUnspents, toPubKeyHash)
 	return tx

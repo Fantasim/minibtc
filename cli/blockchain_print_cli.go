@@ -5,6 +5,7 @@ import (
 	"flag"
 	"letsgo/blockchain"
 	"letsgo/util"
+	"letsgo/script"
 )
 
 func blockchainPrintUsage(){
@@ -62,6 +63,10 @@ func printAdvanced(){
 			fmt.Printf("\t Coinbase: %t\n", tx.IsCoinbase())
 			fmt.Printf("\t Hash: %x\n", tx.GetHash())
 			fmt.Printf("\t Value %d\n", tx.GetValue())
+			for idx, out := range tx.Outputs {
+				fmt.Printf("\t output[%d]: %d\n", idx, util.DecodeInt(out.Value))
+				fmt.Printf("\t output[%d] scriptPubKey: %s\n", idx, script.Script.String(out.ScriptPubKey))
+			}
 		}
 		i--
 	}
@@ -72,7 +77,7 @@ func BlockchainPrintCli(){
 	basic := blockchainPrintCMD.Bool("basic", false, "Print blockchain with basic contents")
 	intermediate := blockchainPrintCMD.Bool("intermediate", false, "Print blockchain with intermediate contents")
 	advanced := blockchainPrintCMD.Bool("advanced", false, "Print blockchain with advanced contents")
-	
+
 	handleParsingError(blockchainPrintCMD)
 
 	if *advanced == true {

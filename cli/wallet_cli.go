@@ -5,6 +5,8 @@ import (
 	"letsgo/wallet"
 	"letsgo/blockchain"
 	"fmt"
+	"github.com/bradfitz/slice"
+	"bytes"
 )
 
 func walletUsage(){
@@ -15,7 +17,13 @@ func walletUsage(){
 
 //Afficher les adresses du wallet
 func PrintAddressStored(){
-	for _, ws := range blockchain.Walletinfo.Ws {
+	wsList := blockchain.Walletinfo.Ws
+
+    slice.Sort(wsList[:], func(i, j int) bool {
+        return bytes.Compare(wsList[i].Address, wsList[j].Address) < 0
+    })
+
+	for _, ws := range wsList {
 		fmt.Println(string(ws.Wallet.GetAddress()), "\t", ws.Amount)
 	}
 }

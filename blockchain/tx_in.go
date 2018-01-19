@@ -17,12 +17,12 @@ type Input struct {
 }
 
 //Retourne un nouvel input de tx
-func NewTxInput(PrevTransactionHash []byte, Vout []byte, ScriptSig [][]byte) Input {
+func NewTxInput(prevTransactionHash []byte, vout []byte, scriptSig [][]byte) Input {
 	in := Input{
-		PrevTransactionHash: PrevTransactionHash,
-		Vout: util.EncodeInt(-1),
-		TxInScriptLen: util.EncodeInt(util.LenDoubleSliceByte(ScriptSig)),
-		ScriptSig: ScriptSig,
+		PrevTransactionHash: prevTransactionHash,
+		Vout: vout,
+		TxInScriptLen: util.EncodeInt(util.LenDoubleSliceByte(scriptSig)),
+		ScriptSig: scriptSig,
 	}
 	return in
 }

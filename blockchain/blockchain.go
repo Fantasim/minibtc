@@ -6,9 +6,8 @@ import (
 	"log"
 	"fmt"
 	"encoding/hex"
-	//"letsgo/util"
+	"letsgo/util"
 	"letsgo/wallet"
-	"time"
 	"bytes"
 	"errors"
 )
@@ -46,13 +45,16 @@ type Blockchain struct {
 
 //Charge les outputs non dépensés lié aux wallets locaux
 func loadSpendableOutputs(){
-	for wallet.WalletLoaded == false {
-		time.Sleep(100 * time.Millisecond)
+	if wallet.WalletLoaded == true {
+		Walletinfo = GetWalletInfo()
+	} else {
+		fmt.Println("Les informations du wallets ne se chargent pas.")
+		os.Exit(0)
 	}
-	Walletinfo = GetWalletInfo()
 }
 
 func init(){
+	var blockchn = false
 	//Si la variable d'environnement NODE_ID est bien set
 	NODE_ID = os.Getenv("NODE_ID")
 	if NODE_ID == "" {
@@ -64,21 +66,33 @@ func init(){
 	//si la db existe déjà, on charge la blockchain
 	if dbExists() == true {
 		//charge le fichier db
-		loadDB()
+		if loadDB() == nil {
+			blockchn = true
+		}
 	} else {
-		//block genèse
-		genesis := NewGenesisBlock("16caHAfC5FpWWtmXTqphtQyRUXN2DgorJ3")
-		//sinon on créer une blockchain à partir d'un block genèse
-		if err := CreateBlockchainDB(genesis); err != nil {
-			log.Panic(err)
+		if len(wallet.WalletList) > 0 {
+			var address string
+			for addr, _ := range wallet.WalletList {
+				address = addr
+				break
+			}
+			//block genèse
+			genesis := NewGenesisBlock(address)
+			//sinon on créer une blockchain à partir d'un block genèse
+			if err := CreateBlockchainDB(genesis); err != nil {
+				log.Panic(err)
+			}
+			blockchn = true
 		}
 	}
-	//on charge la hauteur de la blockchain
-	BC_HEIGHT = BC.getHeight()
-	//On réindex les utxo
-	UTXO.Reindex()
-	//On récupère les outputs non dépensé du wallet
-	loadSpendableOutputs()
+	if blockchn == true {
+		//on charge la hauteur de la blockchain
+		BC_HEIGHT = BC.getHeight()
+		//On réindex les utxo
+		UTXO.Reindex()
+		//On récupère les outputs non dépensé du wallet
+		loadSpendableOutputs()
+	}
 }
 
 //récupère la height de la blockchain
@@ -129,20 +143,28 @@ func (b *Blockchain) FindUTXO() map[string]TxOutputs {
 					outs.Outputs = append(outs.Outputs, out)
 					utxo[txID] = outs
 				}
+
+				if tx.IsCoinbase() == false {
+					for _, in := range tx.Inputs {
+						inTxID := hex.EncodeToString(in.PrevTransactionHash)
+						spentTXOs[inTxID] = append(spentTXOs[inTxID], util.DecodeInt(in.Vout))
+					}
+				}
+				/*
 				//si la transaction n'est pas coinbase
 				if tx.IsCoinbase() == false {
 					//pour chaque input de la tx
-					for idx, in := range tx.Inputs {
+					for _, in := range tx.Inputs {
 						//On récupère la transaction précédente
 						prevHash := hex.EncodeToString(in.PrevTransactionHash)
 						//On ajoute l'output lié à cet input dans la liste des outputs depensés
-						spentTXOs[prevHash] = append(spentTXOs[prevHash], idx)
+						spentTXOs[prevHash] = append(spentTXOs[prevHash], util.DecodeInt(in.Vout))
 					}
-				}
+				}*/
 		}
 	}
 	return utxo
-} 
+}
 
 func (b *Blockchain) AddBlock(block *Block) error {
 	db := BC.DB

@@ -44,6 +44,27 @@ func printTx(tx *blockchain.Transaction, block *blockchain.Block, height int){
 	}
 }
 
+func printTxOnly(tx *blockchain.Transaction){
+	fmt.Printf("== TX %x ==\n", tx.GetHash())
+	fmt.Printf("    Coinbase: %t\n", tx.IsCoinbase())
+	fmt.Printf("    Version: %x\n", tx.Version)
+	fmt.Printf("    Value %d\n\n", tx.GetValue())
+	fmt.Printf("    %d inputs:\n", len(tx.Inputs))
+	for idx, in := range tx.Inputs {
+		fmt.Printf("    === [%d] ===\n", idx)
+		fmt.Printf("    PrevHash: %x\n", in.PrevTransactionHash)
+		fmt.Printf("    Vout: %d\n", util.DecodeInt(in.Vout))
+		fmt.Printf("    ScriptSig: %s\n\n", script.Script.String(in.ScriptSig))
+	}
+	fmt.Printf("    %d outputs:\n", len(tx.Outputs))
+	for idx, out := range tx.Outputs {
+		fmt.Printf("    === [%d] ===\n", idx)
+		fmt.Printf("    Value: %d\n", util.DecodeInt(out.Value))
+		fmt.Printf("    ScriptPubKey: %s\n\n", script.Script.String(out.ScriptPubKey))
+	}
+}
+
+
 func TxPrintCli(){
 	TxCMD := flag.NewFlagSet("tx", flag.ExitOnError)
 	hash := TxCMD.String("hash", "", "Print tx if exist")
@@ -63,16 +84,16 @@ func TxPrintCli(){
 func TxCreateCli(){
 	TxCMD := flag.NewFlagSet("tx_create", flag.ExitOnError)
 	to := TxCMD.String("to", "", "address to send")
+	from := TxCMD.String("from", "", "sender address")
 	amount := TxCMD.Int("amount", 0, "amount to send")
 	handleParsingError(TxCMD)
 
 	if *to != "" && *amount > 0 {
-		fmt.Println(*amount)
-		tx := blockchain.CreateTx(*to, *amount)
+		tx := blockchain.CreateTx(*from, *to, *amount)
 		block := blockchain.NewBlock([]blockchain.Transaction{*tx}, blockchain.BC.Tip)
 		err := blockchain.BC.AddBlock(block)
 		if err != nil {
-			fmt.Println("Block miné")
+			fmt.Println("Block non miné")
 		}
 	} else {
 		TxCreateUsage()

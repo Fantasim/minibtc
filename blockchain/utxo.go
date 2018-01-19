@@ -4,7 +4,7 @@ import (
 	"github.com/boltdb/bolt"
 	"letsgo/util"
 	"log"
-	//"letsgo/wallet"
+	"letsgo/wallet"
 	"encoding/hex"
 )
 
@@ -18,10 +18,25 @@ var (
 
 type UTXOSet struct {}
 
+//Structure représentant les informations liés à un UTXO
+type UnspentOutput struct {
+	TxID []byte
+	Output int
+	Amount int
+}
+
+//Structure représentant les informations liées 
+//à un UTXO présent dans un wallet local
+type LocalUnspentOutput struct {
+	TxID []byte
+	Output int
+	Amount int
+	Wallet *wallet.Wallet
+}
 
 //Récupère une liste d'outputs non dépensé locké avec le pubKeyHash
 //d'un montant supérieur ou égal au montant passé en paramètre
-func (utxo *UTXOSet) FindSpendableOutputsByPubKeyHash(pubKeyHash []byte, amount int) (int, []UnspentOutput) {
+func (utxo *UTXOSet) GetUnspentOutputsByPubKeyHash(pubKeyHash []byte, amount int) (int, []UnspentOutput) {
 	var unspentOutputs []UnspentOutput
 	accumulated := 0
 	db := BC.DB
@@ -54,6 +69,54 @@ func (utxo *UTXOSet) FindSpendableOutputsByPubKeyHash(pubKeyHash []byte, amount 
 		log.Panic(err)
 	}
 	return accumulated, unspentOutputs
+}
+
+//Récupère une liste d'outputs locaux non dépensé locké avec le pubKeyHash
+//d'un montant supérieur ou égal au montant passé en paramètre
+func (utxo *UTXOSet) GetLocalUnspentOutputsByPubKeyHash(pubKeyHash []byte, amount int) (int, []LocalUnspentOutput) {
+	var list []LocalUnspentOutput
+	w := wallet.GetWalletByPubKeyHash(pubKeyHash)
+
+	if w == nil {
+		return 0, list
+	}
+
+	amount, unspents := utxo.GetUnspentOutputsByPubKeyHash(pubKeyHash, amount)
+	
+	for _, us := range unspents {
+		localUXO := LocalUnspentOutput{us.TxID, us.Output, us.Amount, w}
+		list = append(list, localUXO)
+	}
+
+	return amount, list
+} 
+
+//Récupère une liste UTXO sur des wallets 
+//enregistrés localement.
+func (wInfo *WalletInfo) GetLocalUnspentOutputs(amount int, notAcceptedAddr... string) (int, []LocalUnspentOutput)  {
+	var total = 0
+	var localUnSpents []LocalUnspentOutput
+
+	BrowseWallet:
+	for _, ws := range Walletinfo.Ws {
+
+		if amount < total {
+			break
+		}
+		for _, addr := range notAcceptedAddr {
+			if addr == string(ws.Address) {
+				continue BrowseWallet;
+			}
+		}
+
+		a, outs := UTXO.GetUnspentOutputsByPubKeyHash(wallet.HashPubKey(ws.Wallet.PublicKey), amount - total)
+		total += a
+		for _, uo := range outs {
+			uo := LocalUnspentOutput{uo.TxID, uo.Output, uo.Amount, ws.Wallet}
+			localUnSpents = append(localUnSpents, uo)
+		} 
+	}
+	return total, localUnSpents
 }
 
 //Reindex la liste des utxo dans le bucket des UTXOS
