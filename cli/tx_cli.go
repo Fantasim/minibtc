@@ -86,14 +86,17 @@ func TxCreateCli(){
 	to := TxCMD.String("to", "", "address to send")
 	from := TxCMD.String("from", "", "sender address")
 	amount := TxCMD.Int("amount", 0, "amount to send")
+	fees := TxCMD.Int("fees", 0, "fees to offer to miner")
 	handleParsingError(TxCMD)
 
 	if *to != "" && *amount > 0 {
-		tx := blockchain.CreateTx(*from, *to, *amount)
-		block := blockchain.NewBlock([]blockchain.Transaction{*tx}, blockchain.BC.Tip)
-		err := blockchain.BC.AddBlock(block)
-		if err != nil {
-			fmt.Println("Block non miné")
+		tx := blockchain.CreateTx(*from, *to, *amount, *fees)
+		if tx != nil {
+			block := blockchain.NewBlock([]blockchain.Transaction{*tx}, blockchain.BC.Tip)
+			err := blockchain.BC.AddBlock(block)
+			if err != nil {
+				fmt.Println("Block non miné")
+			}
 		}
 	} else {
 		TxCreateUsage()

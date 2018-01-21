@@ -14,6 +14,7 @@ import (
 
 //HashPrevBlock du block genèse
 var GENESIS_BLOCK_PREVHASH = []byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+const blockHeaderLength uint64 = 180
 
 //Structure d'un Block
 type Block struct {
@@ -39,7 +40,7 @@ func NewGenesisBlock(address string) Block {
 	//récupère la clé public liée à l'address
 	pubKey := wallet.GetPubKeyFromAddress(address)
 	//créer une nouvelle transaction coinbase
-	tx := NewCoinbaseTx(pubKey)
+	tx := NewCoinbaseTx(pubKey, 0)
 
 	//créer un nouveau block et ajoute la structure
 	block := Block{
@@ -70,7 +71,7 @@ func NewGenesisBlock(address string) Block {
 	//ajoute le nonce au header
 	block.Header.Nonce = util.EncodeInt(nonce)
 	//ajoute la taille total du block
-	block.Size = util.EncodeInt(int(unsafe.Sizeof(block)))
+	block.Size = util.EncodeInt(int(block.GetSize()))
 	return block
 }
 
@@ -103,6 +104,15 @@ func (b *Block) Serialize() []byte {
 	return result.Bytes()
 }
 
+func (b *Block) GetSize() uint64 {
+	 n := blockHeaderLength + uint64(util.VarIntSerializeSize(uint64(len(b.Transactions))))
+
+	 for _, tx := range b.Transactions {
+		 n += tx.GetSize()
+	 }
+	 return n
+}
+
 //Deserialize un block
 func DeserializeBlock(d []byte) *Block {
 	var block Block
@@ -119,12 +129,22 @@ func DeserializeBlock(d []byte) *Block {
 func NewBlock(txs []Transaction, prevBlockHash []byte) *Block{
 	block := &Block{}
 	
+	var total_fees = 0
+	for _, tx := range txs {
+		total_inputs, total_outputs, fees := tx.GetAmounts()
+		if total_outputs > total_inputs {
+			fmt.Println("Total outputs is greater than total_inputs. dectecting cheat try.")
+			return nil
+		}
+		total_fees += fees
+	}
+	fmt.Println("fees:", total_fees)
 	//Récupère un wallet aléatoire vers qui envoyer la transaction coinbase
 	w := wallet.RandomWallet()
 
 	fmt.Println(string(w.GetAddress()))
 	//Créer une transaction coinbase
-	coinbaseTx := NewCoinbaseTx(w.PublicKey)
+	coinbaseTx := NewCoinbaseTx(w.PublicKey, total_fees)
 
 	//Prepend la transaction coinbase à liste de transaction
 	txs = append([]Transaction{coinbaseTx}, txs...)
@@ -159,7 +179,7 @@ func NewBlock(txs []Transaction, prevBlockHash []byte) *Block{
 	//ajoute le nonce au header
 	block.Header.Nonce = util.EncodeInt(nonce)
 	//ajoute la taille total du block
-	block.Size = util.EncodeInt(int(unsafe.Sizeof(block)))
+	block.Size = util.EncodeInt(int(unsafe.Sizeof(*block)))
 	return block
 }
 

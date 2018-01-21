@@ -33,3 +33,7 @@ func (in *Input) GetPrevTx() (string, *Transaction) {
 	tx, _, _ := GetTxByHash(in.PrevTransactionHash)
 	return hex.EncodeToString(tx.GetHash()), tx
 }
+
+func (in *Input) GetSize() uint64 {
+	return 0
+}

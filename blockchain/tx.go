@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/gob"
 	"letsgo/util"
-	"os"
 	"letsgo/wallet"
 	"fmt"
 )
@@ -36,10 +35,10 @@ func (tx Transaction) Serialize() []byte {
 }
 
 //Créer une transaction coinbase
-func NewCoinbaseTx(toPubKey []byte) Transaction {
+func NewCoinbaseTx(toPubKey []byte, fees int) Transaction {
 	var empty [][]byte
 	txIn := NewTxInput([]byte{}, util.EncodeInt(-1), empty)
-	txOut := NewTxOutput(script.Script.LockingScript(wallet.HashPubKey(toPubKey)), REWARD)
+	txOut := NewTxOutput(script.Script.LockingScript(wallet.HashPubKey(toPubKey)), REWARD + fees)
 
 	tx := Transaction{
 		Version: []byte{VERSION},
@@ -88,11 +87,22 @@ func GetTxByHash(hash []byte) (*Transaction, *Block, int) {
 	return nil, nil, -1
 }
 
-func CreateTx(from string, to string, amount int) *Transaction {
+func (tx *Transaction) GetSize() uint64 {
+	return 0
+}
+
+//Créer une transaction
+func CreateTx(from string, to string, amount int, fees int) *Transaction {
 	var inputs []Input
+	var inputsPubKey []string
 	var outputs []Output
 	var localUnspents []LocalUnspentOutput
 	var amountGot int
+
+	if wallet.IsAddressValid(to) == false {
+		fmt.Println("Address to send is not a valid address")
+		return nil
+	}
 
 	//On récupère la clé public hashée à partir de l'address 
 	//à qui on envoie
@@ -103,15 +113,19 @@ func CreateTx(from string, to string, amount int) *Transaction {
 		//on récupère aussi amountGot, qui est le total de la somme de value des outputs
 		//Cette variable est indispensable, car si la valeur total obtenu est supérieur
 		//au montant d'envoie, on doit transferer l'excédant sur le wallet du créateur de la tx
-		amountGot, localUnspents = Walletinfo.GetLocalUnspentOutputs(amount, to)
+		amountGot, localUnspents = Walletinfo.GetLocalUnspentOutputs(amount + fees, to)
 	} else {
-		amountGot, localUnspents = UTXO.GetLocalUnspentOutputsByPubKeyHash(wallet.GetPubKeyHashFromAddress([]byte(from)), amount)
+		if wallet.IsAddressValid(from) == false {
+			fmt.Println("sender address is not a valid address")
+			return nil
+		}
+		amountGot, localUnspents = UTXO.GetLocalUnspentOutputsByPubKeyHash(wallet.GetPubKeyHashFromAddress([]byte(from)), amount + fees)
 	}
 
 	//Si le montant d'envoie est inférieur au total des wallets locaux
-	if (from == "" && amount > Walletinfo.Amount) || (from != "" && amount > amountGot) {
+	if (from == "" && (amount + fees) > Walletinfo.Amount) || (from != "" && (amount + fees) > amountGot) {
 		log.Println("You don't have enough coin to perform this transaction.")
-		os.Exit(-1)
+		return nil
 	}
 
 	//Pour chaque output
@@ -121,6 +135,11 @@ func CreateTx(from string, to string, amount int) *Transaction {
 		input := NewTxInput(localUs.TxID, util.EncodeInt(localUs.Output), emptyScript)
 		//et on l'ajoute à la liste
 		inputs = append(inputs, input)
+		//on ajoute dans un tableau de string la clé publique correspondant 
+		//au wallet proprietaire de l'output permettant la création de 
+		//cette input.
+		//Ce tableau de clé publique permettra de signer chaque input.	
+		inputsPubKey = append(inputsPubKey, string(localUs.Wallet.PublicKey))
 	}
 
 	//on génére l'output vers l'address de notre destinaire
@@ -129,12 +148,12 @@ func CreateTx(from string, to string, amount int) *Transaction {
 	
 	//Si le montant récupére par les wallets locaux est supérieur
 	//au montant que l'on décide d'envoyer
-	if amountGot > amount {
+	if amountGot > (amount + fees) {
 		//on utilise la clé public du dernier output ajouté à la liste
 		fromPubKeyHash := wallet.HashPubKey(localUnspents[len(localUnspents) - 1].Wallet.PublicKey)
 		//on génére un output vers le dernier output de la liste d'utxo récupéré
 		//et on envoie l'excédant
-		exc := NewTxOutput(script.Script.LockingScript(fromPubKeyHash), amountGot - amount)
+		exc := NewTxOutput(script.Script.LockingScript(fromPubKeyHash), amountGot - (amount + fees))
 		outputs = append(outputs, exc)
 	}
 
@@ -147,13 +166,13 @@ func CreateTx(from string, to string, amount int) *Transaction {
 	}
 
 	//on signe la transaction
-	tx.Sign(localUnspents, toPubKeyHash)
+	tx.Sign(localUnspents, inputsPubKey)
 	return tx
 	
 }
 
 //Signe une transaction avec le clé privé
-func (tx *Transaction) Sign(localUnspents []LocalUnspentOutput, to []byte){
+func (tx *Transaction) Sign(localUnspents []LocalUnspentOutput, inputsPubKey []string){
 	//si la transaction est coinbase
 	if tx.IsCoinbase(){
 		return
@@ -184,14 +203,46 @@ func (tx *Transaction) Sign(localUnspents []LocalUnspentOutput, to []byte){
 		signature := append(r.Bytes(), s.Bytes()...)
 		//on update l'input avec un nouvel input identique 
 		//mais comprenant le bon scriptSig
-		tx.Inputs[idx] = NewTxInput(tx.Inputs[idx].PrevTransactionHash, tx.Inputs[idx].Vout, script.Script.UnlockingScript(signature, to))
+		pubKeyHash := wallet.HashPubKey([]byte(inputsPubKey[idx]))
+		tx.Inputs[idx] = NewTxInput(tx.Inputs[idx].PrevTransactionHash, tx.Inputs[idx].Vout, script.Script.UnlockingScript(signature, pubKeyHash))
 	}
 }
 
+//[]Transaction -> [][]byte
 func TransactionToByteDoubleArray(txs []Transaction) [][]byte {
 	ret := make([][]byte, len(txs))
 	for idx, tx := range txs {
 		ret[idx] = tx.Serialize()
 	}
 	return ret
+}
+
+//Retourne les informations concernant les montants de la transaction
+//présent dans les inputs ou outputs
+//Cette fonction retourne :
+//montant total des inputs, montant total des outputs, frais de transactions
+func (tx *Transaction) GetAmounts() (int, int, int) {
+
+	var total_inputs = 0
+	var total_outputs = 0
+
+	if tx.IsCoinbase() == true {
+		return 0,0,0
+	}
+
+	//Pour chaque input de la tx
+	for _, in := range tx.Inputs {
+		//on recupere la transaction précédante de l'input
+		prevTx, _, _ := GetTxByHash(in.PrevTransactionHash)
+		//on récupère l'output ayant permis la création de l'input
+		out := prevTx.Outputs[(util.DecodeInt(in.Vout))]
+		//on ajoute le montant au montant total assemblés par les inputs
+		total_inputs += util.DecodeInt(out.Value)
+	}
+	//pour chaque output de la tx
+	for _, out := range tx.Outputs {
+		//on ajoute le montant au montant total redistribué vers une adresse.
+		total_outputs += util.DecodeInt(out.Value)
+	}
+	return total_inputs, total_outputs, total_inputs - total_outputs
 }

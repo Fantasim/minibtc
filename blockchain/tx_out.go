@@ -78,3 +78,7 @@ func DeserializeTxOutputs(d []byte) *TxOutputs {
 	}
 	return &outs
 }
+
+func (out *Output) GetSize() uint64 {
+	return 0
+}

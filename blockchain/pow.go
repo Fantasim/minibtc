@@ -11,7 +11,7 @@ import (
 
 var maxNonce = math.MaxInt64
 
-const targetBits = 21
+const targetBits = 25
 
 type Pow struct {
 	block  *Block

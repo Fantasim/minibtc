@@ -144,13 +144,6 @@ func (b *Blockchain) FindUTXO() map[string]TxOutputs {
 					utxo[txID] = outs
 				}
 
-				if tx.IsCoinbase() == false {
-					for _, in := range tx.Inputs {
-						inTxID := hex.EncodeToString(in.PrevTransactionHash)
-						spentTXOs[inTxID] = append(spentTXOs[inTxID], util.DecodeInt(in.Vout))
-					}
-				}
-				/*
 				//si la transaction n'est pas coinbase
 				if tx.IsCoinbase() == false {
 					//pour chaque input de la tx
@@ -160,15 +153,21 @@ func (b *Blockchain) FindUTXO() map[string]TxOutputs {
 						//On ajoute l'output lié à cet input dans la liste des outputs depensés
 						spentTXOs[prevHash] = append(spentTXOs[prevHash], util.DecodeInt(in.Vout))
 					}
-				}*/
+				}
 		}
 	}
 	return utxo
 }
 
+//Ajoute un block à la blockchain
 func (b *Blockchain) AddBlock(block *Block) error {
 	db := BC.DB
 	blockHash := block.GetHash()
+
+	//Vérifie la pow du block
+	if pow := NewProofOfWork(block); pow.Validate() == false {
+		return errors.New("Proof of work is not valid.")
+	}
 
 	err := db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BLOCK_BUCKET))
