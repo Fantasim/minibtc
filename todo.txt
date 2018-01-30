@@ -1,5 +1,0 @@
-
-- comment déterminer a l'avance le temps moyen nécéssaire pour valider un nouveau block avec le pow
-
-- Quand un nouveau block est ajouté a la blockchain, verifier chaque transaction du block, y compris la genese
-
