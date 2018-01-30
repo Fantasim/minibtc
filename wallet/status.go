@@ -1,7 +1,8 @@
-package blockchain
+package wallet
 
 import (
-	"letsgo/wallet"
+	b "tway/blockchain"
+	conf "tway/config"
 )
 
 type WalletInfo struct {
@@ -13,7 +14,7 @@ type WalletInfo struct {
 type WalletStatus struct {
 	Address []byte
 	Amount int
-	Wallet *wallet.Wallet
+	W *Wallet
 }
 
 //Retourne une structure WalletInfo
@@ -22,12 +23,14 @@ type WalletStatus struct {
 //Les informations sont le montant de coins disponible
 // pour chaque adresse
 func GetWalletInfo() *WalletInfo {
+	utxo := b.UTXO
+
 	wInfo := &WalletInfo{}
 
 	//pour chaque wallet
-	for _, w := range wallet.WalletList {
+	for _, w := range WalletList {
 		//on récupère le montant disponible pour le wallet
-		amount, _ := UTXO.GetUnspentOutputsByPubKeyHash(wallet.HashPubKey(w.PublicKey), MAX_COIN)
+		amount, _ := utxo.GetUnspentOutputsByPubKeyHash(HashPubKey(w.PublicKey), conf.MAX_COIN)
 		ws := WalletStatus{w.GetAddress(), amount, w}
 		wInfo.Ws = append(wInfo.Ws, ws)
 

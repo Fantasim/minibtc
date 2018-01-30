@@ -3,9 +3,9 @@ package cli
 import (
 	"fmt"
 	"flag"
-	"letsgo/blockchain"
-	"letsgo/util"
-	"letsgo/script"
+	"tway/blockchain"
+	"tway/util"
+	"tway/script"
 )
 
 func blockchainPrintUsage(){
@@ -18,7 +18,7 @@ func blockchainPrintUsage(){
 
 func printBasic(){
 	e := blockchain.NewExplorer()
-	i := blockchain.BC_HEIGHT
+	i := blockchain.BC.Height
 	for i > 0 {
 		block := e.Next()
 		fmt.Printf("============================== Block [%d] =============================\n", i - 1)
@@ -31,7 +31,7 @@ func printBasic(){
 
 func printIntermediate(){
 	e := blockchain.NewExplorer()
-	i := blockchain.BC_HEIGHT
+	i := blockchain.BC.Height
 	for i > 0 {
 		block := e.Next()
 		fmt.Printf("============================== Block [%d] =============================\n", i - 1)
@@ -47,7 +47,7 @@ func printIntermediate(){
 
 func printAdvanced(){
 	e := blockchain.NewExplorer()
-	i := blockchain.BC_HEIGHT
+	i := blockchain.BC.Height
 	for i > 0 {
 		block := e.Next()
 		
@@ -62,9 +62,8 @@ func printAdvanced(){
 			fmt.Printf("\t=== Tx [%d] ===\n", idx)
 			fmt.Printf("\t Coinbase: %t\n", tx.IsCoinbase())
 			fmt.Printf("\t Hash: %x\n", tx.GetHash())
-			fmt.Printf("\t Value %d\n", tx.GetValue())
 			for idx, out := range tx.Outputs {
-				fmt.Printf("\t output[%d]: %d\n", idx, util.DecodeInt(out.Value))
+				fmt.Printf("\t output[%d] Value: %d\n", idx, util.DecodeInt(out.Value))
 				fmt.Printf("\t output[%d] scriptPubKey: %s\n", idx, script.Script.String(out.ScriptPubKey))
 			}
 		}

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"letsgo/cli"
+	"tway/cli"
 	"math/rand"
 	"time"
 )

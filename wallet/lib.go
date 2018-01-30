@@ -1,7 +1,7 @@
 package wallet
 
 import (
-	"letsgo/util"
+	"tway/util"
 	"bytes"
 	"errors"
 	"crypto/rand"

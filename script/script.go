@@ -1,7 +1,7 @@
 package script
 
 import (
-	"letsgo/util"
+	"tway/util"
 	"fmt"
 	"encoding/hex"
 )

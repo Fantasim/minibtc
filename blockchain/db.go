@@ -3,10 +3,12 @@ package blockchain
 import (
 	"os"
 	"github.com/boltdb/bolt"
+	conf "tway/config"
+	"tway/wire"
 )
 
 func dbExists() bool {
-	if _, err := os.Stat(DB_FILE); os.IsNotExist(err) {
+	if _, err := os.Stat(conf.DB_FILE); os.IsNotExist(err) {
 		return false
 	}
 	return true
@@ -15,7 +17,7 @@ func dbExists() bool {
 //Charge la db de la blockchain si elle existe
 func loadDB() error {
 	var tip []byte
-	db, err := bolt.Open(DB_FILE, 0600, nil)
+	db, err := bolt.Open(conf.DB_FILE, 0600, nil)
 	if err != nil {
 		return err
 	}
@@ -28,18 +30,20 @@ func loadDB() error {
 	if err != nil {
 		return err
 	}
-	BC = &Blockchain{tip, db}
+	BC = &Blockchain{tip, db, 0}
+	BC.getHeight()
 	return nil
 }
 
 //Supprime la db de la blockchain
 func RemoveBlockchainDB() error {
-	return os.Remove(DB_FILE)
+	return os.Remove(conf.DB_FILE)
 }
 
+
 //Créer une nouvelle blockchain avec le block genese contenant une tx coinbase
-func CreateBlockchainDB(genesis Block) error {
-	db, err := bolt.Open(DB_FILE, 0600, nil)
+func CreateBlockchainDB(genesis *wire.Block) error {
+	db, err := bolt.Open(conf.DB_FILE, 0600, nil)
 	if err != nil {
 		return err
 	}
@@ -71,6 +75,6 @@ func CreateBlockchainDB(genesis Block) error {
 		return err
 	}
 	//set le tip et la DB dans la structure Blockchain
-	BC = &Blockchain{tip, db}
+	BC = &Blockchain{tip, db, 1}
 	return nil
 }

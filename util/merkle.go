@@ -1,4 +1,4 @@
-package blockchain
+package util
 
 import (
 	"crypto/sha256"

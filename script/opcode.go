@@ -3,7 +3,7 @@ package script
 import (
 	"errors"
 	"bytes"
-	"letsgo/util"
+	"tway/util"
 )
 
 type opcode struct {

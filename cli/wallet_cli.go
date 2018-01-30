@@ -2,8 +2,7 @@ package cli
 
 import (
 	"flag"
-	"letsgo/wallet"
-	"letsgo/blockchain"
+	"tway/wallet"
 	"fmt"
 	"github.com/bradfitz/slice"
 	"bytes"
@@ -17,14 +16,14 @@ func walletUsage(){
 
 //Afficher les adresses du wallet
 func PrintAddressStored(){
-	wsList := blockchain.Walletinfo.Ws
+	wsList := wallet.Walletinfo.Ws
 
     slice.Sort(wsList[:], func(i, j int) bool {
         return bytes.Compare(wsList[i].Address, wsList[j].Address) < 0
     })
 
 	for _, ws := range wsList {
-		fmt.Println(string(ws.Wallet.GetAddress()), "\t", ws.Amount)
+		fmt.Println(string(ws.W.GetAddress()), "\t", ws.Amount)
 	}
 }
 

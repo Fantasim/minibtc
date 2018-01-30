@@ -3,10 +3,15 @@ package cli
 import (
 	"fmt"
 	"flag"
-	"letsgo/blockchain"
-	"letsgo/util"
+	b "tway/blockchain"
+	"tway/util"
+	"crypto/ecdsa"
 	"encoding/hex"
-	"letsgo/script"
+	"tway/script"
+	"tway/wire"
+	"tway/wallet"
+	conf "tway/config"
+	"log"
 )
 
 func TxPrintUsage(){
@@ -16,69 +21,96 @@ func TxPrintUsage(){
 	fmt.Println("\t tx_create")
 }
 
-func TxCreateUsage(){
-	fmt.Println(" Options:")
-	fmt.Println(" --to \t address to send")
-	fmt.Println(" --amount \t amount to send")
-}
+func createTx(from string, to string, amount int, fees int) *wire.Transaction {
+	var inputs []wire.Input
+	var inputsPubKey []string
+	var inputsPrivKey []ecdsa.PrivateKey
+	var outputs []wire.Output
+	var localUnspents []wallet.LocalUnspentOutput
+	var amountGot int
 
-func printTx(tx *blockchain.Transaction, block *blockchain.Block, height int){
-	fmt.Printf("Block height: %d\n", height)
-	fmt.Printf("Block hash: %x\n\n", block.GetHash())
-	fmt.Printf("== TX %x ==\n", tx.GetHash())
-	fmt.Printf("    Coinbase: %t\n", tx.IsCoinbase())
-	fmt.Printf("    Version: %x\n", tx.Version)
-	fmt.Printf("    Value %d\n\n", tx.GetValue())
-	fmt.Printf("    %d inputs:\n", len(tx.Inputs))
-	for idx, in := range tx.Inputs {
-		fmt.Printf("    === [%d] ===\n", idx)
-		fmt.Printf("    PrevHash: %x\n", in.PrevTransactionHash)
-		fmt.Printf("    Vout: %d\n", util.DecodeInt(in.Vout))
-		fmt.Printf("    ScriptSig: %s\n\n", script.Script.String(in.ScriptSig))
+	Walletinfo := wallet.Walletinfo
+
+	if wallet.IsAddressValid(to) == false {
+		fmt.Println("Address to send is not a valid address")
+		return nil
 	}
-	fmt.Printf("    %d outputs:\n", len(tx.Outputs))
-	for idx, out := range tx.Outputs {
-		fmt.Printf("    === [%d] ===\n", idx)
-		fmt.Printf("    Value: %d\n", util.DecodeInt(out.Value))
-		fmt.Printf("    ScriptPubKey: %s\n\n", script.Script.String(out.ScriptPubKey))
-	}
-}
+	//On récupère la clé public hashée à partir de l'address 
+	//à qui on envoie
+	toPubKeyHash := wallet.GetPubKeyHashFromAddress([]byte(to))
 
-func printTxOnly(tx *blockchain.Transaction){
-	fmt.Printf("== TX %x ==\n", tx.GetHash())
-	fmt.Printf("    Coinbase: %t\n", tx.IsCoinbase())
-	fmt.Printf("    Version: %x\n", tx.Version)
-	fmt.Printf("    Value %d\n\n", tx.GetValue())
-	fmt.Printf("    %d inputs:\n", len(tx.Inputs))
-	for idx, in := range tx.Inputs {
-		fmt.Printf("    === [%d] ===\n", idx)
-		fmt.Printf("    PrevHash: %x\n", in.PrevTransactionHash)
-		fmt.Printf("    Vout: %d\n", util.DecodeInt(in.Vout))
-		fmt.Printf("    ScriptSig: %s\n\n", script.Script.String(in.ScriptSig))
-	}
-	fmt.Printf("    %d outputs:\n", len(tx.Outputs))
-	for idx, out := range tx.Outputs {
-		fmt.Printf("    === [%d] ===\n", idx)
-		fmt.Printf("    Value: %d\n", util.DecodeInt(out.Value))
-		fmt.Printf("    ScriptPubKey: %s\n\n", script.Script.String(out.ScriptPubKey))
-	}
-}
-
-
-func TxPrintCli(){
-	TxCMD := flag.NewFlagSet("tx", flag.ExitOnError)
-	hash := TxCMD.String("hash", "", "Print tx if exist")
-	handleParsingError(TxCMD)
-
-	if *hash != "" {
-		h, _ := hex.DecodeString(*hash)
-		tx, block, height := blockchain.GetTxByHash(h)
-		if height != -1 {
-			printTx(tx, block, height)
-		}
+	if from == "" {
+		//on récupère une liste d'output qui totalise le montant a envoyer
+		//on récupère aussi amountGot, qui est le total de la somme de value des outputs
+		//Cette variable est indispensable, car si la valeur total obtenu est supérieur
+		//au montant d'envoie, on doit transferer l'excédant sur le wallet du créateur de la tx
+		amountGot, localUnspents = Walletinfo.GetLocalUnspentOutputs(amount + fees, to)
 	} else {
-		TxPrintUsage()
+		if wallet.IsAddressValid(from) == false {
+			fmt.Println("sender address is not a valid address")
+			return nil
+		}
+		amountGot, localUnspents = wallet.GetLocalUnspentOutputsByPubKeyHash(wallet.GetPubKeyHashFromAddress([]byte(from)), amount + fees)
 	}
+
+	//Si le montant d'envoie est inférieur au total des wallets locaux
+	if (from == "" && (amount + fees) > Walletinfo.Amount) || (from != "" && (amount + fees) > amountGot) {
+		log.Println("You don't have enough coin to perform this transaction.")
+		return nil
+	}
+
+	//Pour chaque output
+	for _, localUs := range localUnspents {
+		var emptyScript [][]byte
+		//on génère un input à partir de l'output
+		input := wire.NewTxInput(localUs.TxID, util.EncodeInt(localUs.Output), emptyScript)
+		//et on l'ajoute à la liste
+		inputs = append(inputs, input)
+		//on ajoute dans un tableau de string la clé publique correspondant 
+		//au wallet proprietaire de l'output permettant la création de 
+		//cette input.	
+		inputsPubKey = append(inputsPubKey, string(localUs.W.PublicKey))
+		//on ajoute dans un tableau de clé privée la clé privée correspondant 
+		//au wallet proprietaire de l'output permettant la signature de 
+		//cette input.
+		//Ce tableau de clé privée permettra de signer chaque input.	
+		inputsPrivKey = append(inputsPrivKey, localUs.W.PrivateKey)
+	}
+
+	//on génére l'output vers l'address de notre destinaire
+	out := wire.NewTxOutput(script.Script.LockingScript(toPubKeyHash), amount)
+	outputs = append(outputs, out)
+	
+	//Si le montant récupére par les wallets locaux est supérieur
+	//au montant que l'on décide d'envoyer
+	if amountGot > (amount + fees) {
+		//on utilise la clé public du dernier output ajouté à la liste
+		fromPubKeyHash := wallet.HashPubKey(localUnspents[len(localUnspents) - 1].W.PublicKey)
+		//on génére un output vers le dernier output de la liste d'utxo récupéré
+		//et on envoie l'excédant
+		exc := wire.NewTxOutput(script.Script.LockingScript(fromPubKeyHash), amountGot - (amount + fees))
+		outputs = append(outputs, exc)
+	}
+
+	tx := &wire.Transaction{
+		Version: []byte{conf.VERSION},
+		InCounter: util.EncodeInt(len(inputs)),
+		Inputs: inputs,
+		OutCounter: util.EncodeInt(len(outputs)),
+		Outputs: outputs,
+	}
+	prevTXs := make(map[string]*wire.Transaction)
+	//on récupère la liste des transactions précédant
+	//la liste des inputs de la tx
+	for _, in := range tx.Inputs {
+		prevTx, _, _ := b.GetTxByHash(in.PrevTransactionHash)
+		txid := hex.EncodeToString(tx.GetHash())
+		prevTXs[txid] = prevTx
+	}
+
+	//on signe la transaction
+	tx.Sign(prevTXs, inputsPrivKey, inputsPubKey)
+	return tx	
 }
 
 func TxCreateCli(){
@@ -90,13 +122,21 @@ func TxCreateCli(){
 	handleParsingError(TxCMD)
 
 	if *to != "" && *amount > 0 {
-		tx := blockchain.CreateTx(*from, *to, *amount, *fees)
-		if tx != nil {
-			block := blockchain.NewBlock([]blockchain.Transaction{*tx}, blockchain.BC.Tip)
-			err := blockchain.BC.AddBlock(block)
-			if err != nil {
-				fmt.Println("Block non miné")
-			}
+		tx := createTx(*from, *to, *amount, *fees)
+		block := wire.NewBlock([]wire.Transaction{*tx}, b.BC.Tip, wallet.RandomWallet().PublicKey, *fees)
+		//Créer une target de proof of work
+		pow := b.NewProofOfWork(block)
+		//cherche le nonce correspondant à la target
+		nonce, _, err := pow.Run()
+		if err != nil {
+			log.Panic(err)
+		}
+		//ajoute le nonce au header
+		block.Header.Nonce = util.EncodeInt(nonce)
+		//ajoute la taille total du block
+		block.Size = util.EncodeInt(int(block.GetSize()))
+		if err := b.BC.AddBlock(block); err != nil {
+			fmt.Println("Block non miné")
 		}
 	} else {
 		TxCreateUsage()

@@ -3,7 +3,7 @@ package script
 import (
 	"fmt"
 	"errors"
-	"letsgo/util"
+	"tway/util"
 )
 
 type stack struct {

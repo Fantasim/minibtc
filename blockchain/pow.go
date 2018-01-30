@@ -4,22 +4,22 @@ import (
 	"math/big"
 	"math"
 	"bytes"
-	"letsgo/util"
+	"tway/util"
+	"tway/wire"
 	"time"
 	"fmt"
 )
 
 var maxNonce = math.MaxInt64
-
-const targetBits = 25
+const targetBits = 23
 
 type Pow struct {
-	block  *Block
+	block  *wire.Block
 	target *big.Int
 }
 
 // NewProofOfWork builds and returns a ProofOfWork
-func NewProofOfWork(b *Block) *Pow {
+func NewProofOfWork(b *wire.Block) *Pow {
 	target := big.NewInt(1)
 	target.Lsh(target, uint(256-targetBits))
 

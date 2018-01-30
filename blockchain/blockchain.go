@@ -2,101 +2,44 @@ package blockchain
 
 import (
 	"github.com/boltdb/bolt"
-	"os"
-	"log"
-	"fmt"
-	"encoding/hex"
-	"letsgo/util"
-	"letsgo/wallet"
-	"bytes"
+	"tway/wire"
+	"tway/util"
 	"errors"
+	"encoding/hex"
+	"fmt"
+	"bytes"
+	"log"
 )
 
 const (
-	//Récompense de la transaction coinbase à chaque nouveau block miné
-	REWARD = 50000000
-	//total supply de la coin
-	MAX_COIN = 21000000000000
-	//Version du client
-	VERSION = byte(0x00)
 	//Nom du bucket des blocks
 	BLOCK_BUCKET = "blocks"
 )
 
 var (
-	// du noeud
-	NODE_ID string
-
-	//Path vers le fichier DB
-	DB_FILE = "/Users/fantasim/go/src/letsgo/assets/db/"
-
-	BC *Blockchain 
-
-	//Hauteur courante de la blockchain
-	BC_HEIGHT int
-	//Liste des outputs non depensés liés aux wallets locaux
-	Walletinfo *WalletInfo
+	BC *Blockchain
+	GENESIS_PUBKEY = []byte{189, 208, 30, 89, 219, 197, 16, 58, 25, 114, 192, 26, 220, 144, 175, 157, 49, 159, 118, 140, 125, 205, 53, 177, 7, 217, 176, 2, 32, 103, 6, 158, 41, 70, 93, 47, 232, 197, 86, 128, 148, 98, 99, 151, 120, 33, 166, 193, 45, 123, 29, 252, 213, 142, 130, 88, 248, 152, 109, 119, 89, 243, 129, 88}
 )
 
 type Blockchain struct {
 	Tip []byte
 	DB *bolt.DB
-}
-
-//Charge les outputs non dépensés lié aux wallets locaux
-func loadSpendableOutputs(){
-	if wallet.WalletLoaded == true {
-		Walletinfo = GetWalletInfo()
-	} else {
-		fmt.Println("Les informations du wallets ne se chargent pas.")
-		os.Exit(0)
-	}
+	Height int
 }
 
 func init(){
-	var blockchn = false
-	//Si la variable d'environnement NODE_ID est bien set
-	NODE_ID = os.Getenv("NODE_ID")
-	if NODE_ID == "" {
-		fmt.Printf("Vous devez créer une variable d'environnement correspondant à l'ID de votre noeud.\nExemple : `export NODE_ID=10000`\n\n")
-		os.Exit(1)
-	}
-	//Ajoute la string de la variable d'environnement au path du fichier DB
-	DB_FILE += NODE_ID
-	//si la db existe déjà, on charge la blockchain
 	if dbExists() == true {
 		//charge le fichier db
-		if loadDB() == nil {
-			blockchn = true
-		}
+		loadDB()
 	} else {
-		if len(wallet.WalletList) > 0 {
-			var address string
-			for addr, _ := range wallet.WalletList {
-				address = addr
-				break
-			}
-			//block genèse
-			genesis := NewGenesisBlock(address)
-			//sinon on créer une blockchain à partir d'un block genèse
-			if err := CreateBlockchainDB(genesis); err != nil {
-				log.Panic(err)
-			}
-			blockchn = true
-		}
+		genesis := GenesisBlock(GENESIS_PUBKEY)
+		CreateBlockchainDB(genesis)
 	}
-	if blockchn == true {
-		//on charge la hauteur de la blockchain
-		BC_HEIGHT = BC.getHeight()
-		//On réindex les utxo
-		UTXO.Reindex()
-		//On récupère les outputs non dépensé du wallet
-		loadSpendableOutputs()
-	}
+	UTXO.Reindex()
 }
 
 //récupère la height de la blockchain
-func (b *Blockchain) getHeight() int {
+func (b *Blockchain) getHeight() {
 	be := NewExplorer()
 	var i = 0
 	for {
@@ -106,12 +49,61 @@ func (b *Blockchain) getHeight() int {
 		}
 		i++
 	}
-	return i
+	b.Height = i
+}
+
+//Ajoute un block à la blockchain
+func (b *Blockchain) AddBlock(block *wire.Block) error {
+	db := b.DB
+
+	blockHash := block.GetHash()
+
+	//Vérifie la pow du block
+	if pow := NewProofOfWork(block); pow.Validate() == false {
+		return errors.New("Proof of work is not valid.")
+	}
+
+	err := db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(BLOCK_BUCKET))
+		//recupere dans la db un block correspondant au hash du nouveau block
+		blockInDb := b.Get(blockHash)
+		//si il existe deja
+		if blockInDb != nil {
+			fmt.Println("Le block", hex.EncodeToString(blockHash), "existe deja")
+			return nil
+		}
+		//recupere le hash du block ayant la plus hauteur hauteur
+		lastHash := b.Get([]byte("l"))
+		lastBlockData := b.Get(lastHash)
+		lastBlock := wire.DeserializeBlock(lastBlockData)
+		lastBlockHash := lastBlock.GetHash()
+
+		if bytes.Compare(block.Header.HashPrevBlock, lastBlockHash) != 0 {
+			return errors.New("New block is not the tip's next block")
+		}
+
+		//ajoute le block dans la db
+		err := b.Put(blockHash, block.Serialize())
+		if err != nil {
+			return err
+		}
+		err = b.Put([]byte("l"), blockHash)
+		if err != nil {
+			log.Panic(err)
+		}
+		BC.Tip = blockHash
+		return nil
+	})
+	if err == nil {
+		BC.Height += 1
+		UTXO.Reindex()
+	}
+	return err
 }
 
 //Récupère la totalité des utxos de la chain
-func (b *Blockchain) FindUTXO() map[string]TxOutputs {
-	utxo := make(map[string]TxOutputs)
+func (b *Blockchain) FindUTXO() map[string]wire.TxOutputs {
+	utxo := make(map[string]wire.TxOutputs)
 	spentTXOs := make(map[string][]int)
 	e := NewExplorer()
 	
@@ -157,53 +149,4 @@ func (b *Blockchain) FindUTXO() map[string]TxOutputs {
 		}
 	}
 	return utxo
-}
-
-//Ajoute un block à la blockchain
-func (b *Blockchain) AddBlock(block *Block) error {
-	db := BC.DB
-	blockHash := block.GetHash()
-
-	//Vérifie la pow du block
-	if pow := NewProofOfWork(block); pow.Validate() == false {
-		return errors.New("Proof of work is not valid.")
-	}
-
-	err := db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(BLOCK_BUCKET))
-		//recupere dans la db un block correspondant au hash du nouveau block
-		blockInDb := b.Get(blockHash)
-		//si il existe deja
-		if blockInDb != nil {
-			fmt.Println("Le block", hex.EncodeToString(blockHash), "existe deja")
-			return nil
-		}
-		//recupere le hash du block ayant la plus hauteur hauteur
-		lastHash := b.Get([]byte("l"))
-		lastBlockData := b.Get(lastHash)
-		lastBlock := DeserializeBlock(lastBlockData)
-		lastBlockHash := lastBlock.GetHash()
-
-		if bytes.Compare(block.Header.HashPrevBlock, lastBlockHash) != 0 {
-			return errors.New("New block is not the tip's next block")
-		}
-
-		//ajoute le block dans la db
-		err := b.Put(blockHash, block.Serialize())
-		if err != nil {
-			return err
-		}
-		err = b.Put([]byte("l"), blockHash)
-		if err != nil {
-			log.Panic(err)
-		}
-		BC.Tip = blockHash
-		return nil
-	})
-	if err == nil {
-		BC_HEIGHT += 1
-		UTXO.Reindex()
-		loadSpendableOutputs()
-	}
-	return err
 }

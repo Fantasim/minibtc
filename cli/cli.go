@@ -11,9 +11,10 @@ type CLI struct {
 
 func (cli *CLI) printUsage() {
 	fmt.Println("Commands:")
-	fmt.Println(" wallet \t Manage local wallets")
+	fmt.Println(" block \t Manage block")
 	fmt.Println(" blockchain \t Manage blockchain")
 	fmt.Println(" tx \t Manage transactions")
+	fmt.Println(" wallet \t Manage local wallets")
 }
 
 //Verifie les arguments
@@ -44,11 +45,15 @@ func (cli *CLI) listMenu(){
 		case "blockchain_print":
 			BlockchainPrintCli()
 
+		case "block":
+			BlockPrintCli()
+
 		case "tx":
 			TxPrintCli()
 
 		case "tx_create":
 			TxCreateCli()
+
 		default: 
 			cli.printUsage()
 	}

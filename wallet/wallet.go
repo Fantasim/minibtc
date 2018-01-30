@@ -2,7 +2,7 @@ package wallet
 
 import (
 	"crypto/ecdsa"
-	"letsgo/util"
+	"tway/util"
 	"os"
 	"fmt"
 	"bytes"
@@ -18,6 +18,7 @@ var (
 	WalletLoaded = false
 	NODE_ID string
 	WALLET_FILE = "/Users/fantasim/go/src/letsgo/assets/dat/"
+	Walletinfo *WalletInfo
 )
 
 type Wallet struct {
@@ -33,9 +34,8 @@ func init(){
 	}
 	WALLET_FILE += NODE_ID
 	WalletList = make(map[string]*Wallet)
-	if LoadFromFile() == nil {
-		WalletLoaded = true
-	}
+	LoadFromFile()
+	Walletinfo = GetWalletInfo()
 }
 
 //Gènere un nouveau wallet
