@@ -13,6 +13,7 @@ func (cli *CLI) printUsage() {
 	fmt.Println("Commands:")
 	fmt.Println(" block \t Manage block")
 	fmt.Println(" blockchain \t Manage blockchain")
+	fmt.Println(" server \t Manage server")
 	fmt.Println(" tx \t Manage transactions")
 	fmt.Println(" wallet \t Manage local wallets")
 }
@@ -34,19 +35,18 @@ func Start(){
 
 //la liste des commandes
 func (cli *CLI) listMenu(){
-
 	switch os.Args[1] {
-		case "wallet":
-			walletCli()
-		
+		case "block":
+			BlockPrintCli()
+
 		case "blockchain":
 			blockchainCli()
 
 		case "blockchain_print":
 			BlockchainPrintCli()
 
-		case "block":
-			BlockPrintCli()
+		case "server":
+			serverCli()
 
 		case "tx":
 			TxPrintCli()
@@ -54,6 +54,8 @@ func (cli *CLI) listMenu(){
 		case "tx_create":
 			TxCreateCli()
 
+		case "wallet":
+			walletCli()
 		default: 
 			cli.printUsage()
 	}

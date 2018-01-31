@@ -17,7 +17,7 @@ var (
 	WalletList map[string]*Wallet
 	WalletLoaded = false
 	NODE_ID string
-	WALLET_FILE = "/Users/fantasim/go/src/letsgo/assets/dat/"
+	WALLET_FILE = "/Users/fantasim/go/src/tway/assets/dat/"
 	Walletinfo *WalletInfo
 )
 

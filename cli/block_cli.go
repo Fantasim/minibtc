@@ -2,17 +2,20 @@ package cli
 
 import (
 	"tway/wire"
-	"fmt"
 	"tway/util"
-	"flag"
 	"tway/script"
-	"encoding/hex"
+	"tway/wallet"
 	b "tway/blockchain"
+	"fmt"
+	"flag"
+	"encoding/hex"
+	"log"
 )
 
 func BlockPrintUsage(){
 	fmt.Println(" Options:")
 	fmt.Println(" --hash \t block's hash")
+	fmt.Println(" --new \t Create and add new blockchain onto the blockchain")
 }
 
 
@@ -53,9 +56,28 @@ func printBlock(block *wire.Block){
 	}
 }
 
+func NewBlock(txs []wire.Transaction, fees int){
+	block := wire.NewBlock(txs, b.BC.Tip, wallet.RandomWallet().PublicKey, fees)
+	//Créer une target de proof of work
+	pow := b.NewProofOfWork(block)
+	//cherche le nonce correspondant à la target
+	nonce, _, err := pow.Run()
+	if err != nil {
+		log.Panic(err)
+	}
+	//ajoute le nonce au header
+	block.Header.Nonce = util.EncodeInt(nonce)
+	//ajoute la taille total du block
+	block.Size = util.EncodeInt(int(block.GetSize()))
+	if err := b.BC.AddBlock(block); err != nil {
+		fmt.Println("Block non miné")
+	}
+}
+
 func BlockPrintCli(){
 	blockCMD := flag.NewFlagSet("block", flag.ExitOnError)
 	hash := blockCMD.String("hash", "", "Print block if exist")
+	new := blockCMD.Bool("new", false, "Create and mine new block")
 	handleParsingError(blockCMD)
 
 	if *hash != "" {
@@ -64,6 +86,9 @@ func BlockPrintCli(){
 		if height != -1 {
 			printBlockInChain(block, height)
 		}
+	} else if *new == true {
+		var empty []wire.Transaction
+		NewBlock(empty, 0)
 	} else {
 		BlockPrintUsage()
 	}

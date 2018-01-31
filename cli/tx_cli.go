@@ -123,21 +123,7 @@ func TxCreateCli(){
 
 	if *to != "" && *amount > 0 {
 		tx := createTx(*from, *to, *amount, *fees)
-		block := wire.NewBlock([]wire.Transaction{*tx}, b.BC.Tip, wallet.RandomWallet().PublicKey, *fees)
-		//Créer une target de proof of work
-		pow := b.NewProofOfWork(block)
-		//cherche le nonce correspondant à la target
-		nonce, _, err := pow.Run()
-		if err != nil {
-			log.Panic(err)
-		}
-		//ajoute le nonce au header
-		block.Header.Nonce = util.EncodeInt(nonce)
-		//ajoute la taille total du block
-		block.Size = util.EncodeInt(int(block.GetSize()))
-		if err := b.BC.AddBlock(block); err != nil {
-			fmt.Println("Block non miné")
-		}
+		NewBlock([]wire.Transaction{*tx}, *fees)
 	} else {
 		TxCreateUsage()
 	}
