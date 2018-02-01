@@ -6,8 +6,6 @@ import (
 	"encoding/gob"
 	conf "tway/config"
 	"log"
-	"net"
-	"io"
 	"tway/util"
 	"strconv"
 )
@@ -51,36 +49,6 @@ func gobEncode(data interface{}) []byte {
 	return buff.Bytes()
 }
 
-func nodeIsKnown(addr *NetAddress) bool {
-	for _, node := range KnownNodes {
-		if node.IsEqual(addr) {
-			return true
-		}
-	}
-	return false
-}
-
-func sendData(addr *NetAddress, data []byte) error {
-	conn, err := net.Dial(conf.Protocol, addr.String())
-	if err != nil {
-		fmt.Printf("%s is not available\n", addr)
-		var updatedNodes []*NetAddress
-		//on update le tableau des noeuds connus pour le retirer
-		for _, node := range KnownNodes {
-			if node.IsEqual(addr) == false {
-				updatedNodes = append(updatedNodes, node)
-			}
-		}
-		KnownNodes = updatedNodes
-		return err
-	} 
-	defer conn.Close()
-
-	//on envoie au noeud la data
-	_, err = io.Copy(conn, bytes.NewReader(data))
-	return err
-}
-
 func getPayload(request []byte, payload interface{}) error {
 	var buff bytes.Buffer
 	//ecrit dans le buffeur le payload de la request de commandLength bit jusqu'à la fin
@@ -102,4 +70,8 @@ func GetLocalNetAddr() *NetAddress {
 	port, _ := strconv.Atoi(conf.NODE_ID)
 	addrMe := NewNetAddressIPPort(ip, uint16(port))
 	return addrMe
+}
+
+func GetMainNode() *NetAddress {
+	return NewNetAddressIPPort(conf.MainNodeIP, conf.MainNodePort)
 }

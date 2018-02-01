@@ -8,19 +8,13 @@ import (
 	conf "tway/config"
 )
 
-var (
-	KnownNodes []*NetAddress
-	Node *NetAddress
-)
-
 //function appelé lorsqu'une nouvelle connexion est detectée
-func HandleConnexion(conn net.Conn) {
+func (s *Server) HandleConnexion(conn net.Conn) {
 	//on recupere le []byte dans request
 	request, err := ioutil.ReadAll(conn)
 	if err != nil {
 		log.Panic(err)
 	}
-
 	command := bytesToCommand(request[:conf.CommandLength])
 	switch command {
 /*	case "addr":
@@ -35,8 +29,10 @@ func HandleConnexion(conn net.Conn) {
 		handleGetData(request, bc)
 	case "tx":
 		handleTx(request, bc)*/
+	case "verack":
+		s.handleVerack(request)
 	case "version":
-		handleVersion(request)
+		s.handleVersion(request)
 	default:
 		fmt.Println("Unknown command!")
 	}

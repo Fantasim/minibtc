@@ -15,5 +15,6 @@ func serverCli(){
 		fmt.Println("Miner address is not correct")
 		return
 	}
-	server.StartServer(*minerAddress)
+	s := server.NewServer()
+	s.StartServer(*minerAddress)
 }

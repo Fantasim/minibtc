@@ -2,7 +2,6 @@ package server
 
 import (
 	"time"
-	b "tway/blockchain"
 	conf "tway/config"
 	"log"
 	"fmt"
@@ -21,44 +20,65 @@ type MsgVersion struct {
 	LastBlock int
 }
 
+func (s *Server) NewVersion(addrTo *NetAddress) *MsgVersion {
+	return &MsgVersion{
+		ProtocolVersion: conf.NodeVersion,
+		Timestamp: time.Now(),
+		AddrReceiver: addrTo,
+		AddrSender: s.ipStatus,
+		LastBlock: s.chain.Height,
+	}
+}
+
 //Envoie une structure de la version de notre blockchain au noeud principal
-func sendVersion(addrTo *NetAddress) error {
-	//recupere la hauteur de la blockchain
-	bestHeight := b.BC.Height
-
-	payload := gobEncode(MsgVersion{conf.NodeVersion, time.Now(), addrTo, Node, bestHeight})
-
+func (s *Server) sendVersion(addrTo *NetAddress) ([]byte, error) {
+	payload := gobEncode(*s.NewVersion(addrTo))
 	request := append(commandToBytes("version"), payload...)
-	//on envoie au noeud principale une requete
-	return sendData(addrTo, request)
+	return request, s.sendData(addrTo.String(), request)
 }
 
 //Recupère la version d'un noeud
-func handleVersion(request []byte) {
+func (s *Server) handleVersion(request []byte) {
 	var payload MsgVersion
-
 	if err := getPayload(request, &payload); err != nil {
 		log.Panic(err)
 	}
+
+	go func(){
+		addr := payload.AddrSender.String()
+		s.AddPeer(NewServerPeer(addr))
+		p := s.peers[addr]
+		if p != nil {
+			p.VersionSent()
+			p.IncreaseBytesSent(uint64(len(request)))
+			p.SetLastBlock(int64(payload.LastBlock))
+			p.SetStartingHeight(int64(payload.LastBlock))
+			if request, err := s.sendVerack(payload.AddrSender); err == nil {
+				p.IncreaseBytesReceived(uint64(len(request)))
+				p.VerAckReceived()
+			}
+			if p.IsConfirmed() == true {
+				fmt.Println("Connexion successfully with", p.GetAddr())
+				fmt.Println("Last block:", p.GetLastBlock())
+			}
+			s.peers[addr] = p
+		}
+	}()
+	
+	/*
 	fmt.Println("Version received from :", payload.AddrSender.String())
 	fmt.Println("Block height:", payload.LastBlock, "\n")
-	//recupere la hauteur du noeud courant
-	bestHeight := b.BC.Height
+	*/
+
 	//recupere la hauteur du noeud envoyant une version
 	foreignerBestHeight := payload.LastBlock
 
 	//si le height courant est inférieur au height du noeud recepteur
-	if bestHeight < foreignerBestHeight {
+	if s.chain.Height < foreignerBestHeight {
 		//on lui envoie une demande des blocks qu'il a
 		//sendGetBlocks(payload.AddrFrom)
-	} else if bestHeight > foreignerBestHeight {
+	} else if s.chain.Height > foreignerBestHeight  {
 		//on lui envoie notre version
-		sendVersion(payload.AddrSender)
-	}
-
-	//si le noeud envoyant n'est pas un noeud connu
-	if !nodeIsKnown(payload.AddrSender) {
-		//on ajoute le noeud d'envoie dans la liste des noeuds connus
-		KnownNodes = append(KnownNodes, payload.AddrSender)
+		s.sendVersion(payload.AddrSender)
 	}
 }
