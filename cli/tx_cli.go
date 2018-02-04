@@ -3,14 +3,14 @@ package cli
 import (
 	"fmt"
 	"flag"
-	b "tway/blockchain"
 	"tway/util"
 	"crypto/ecdsa"
-	"encoding/hex"
 	"tway/script"
 	"tway/wire"
 	"tway/wallet"
 	conf "tway/config"
+	b "tway/blockchain"
+	"encoding/hex"
 	"log"
 )
 
@@ -23,7 +23,7 @@ func TxPrintUsage(){
 
 func createTx(from string, to string, amount int, fees int) *wire.Transaction {
 	var inputs []wire.Input
-	var inputsPubKey []string
+	var inputsPubKey [][]byte
 	var inputsPrivKey []ecdsa.PrivateKey
 	var outputs []wire.Output
 	var localUnspents []wallet.LocalUnspentOutput
@@ -69,7 +69,7 @@ func createTx(from string, to string, amount int, fees int) *wire.Transaction {
 		//on ajoute dans un tableau de string la clé publique correspondant 
 		//au wallet proprietaire de l'output permettant la création de 
 		//cette input.	
-		inputsPubKey = append(inputsPubKey, string(localUs.W.PublicKey))
+		inputsPubKey = append(inputsPubKey, localUs.W.PublicKey)
 		//on ajoute dans un tableau de clé privée la clé privée correspondant 
 		//au wallet proprietaire de l'output permettant la signature de 
 		//cette input.
@@ -91,7 +91,6 @@ func createTx(from string, to string, amount int, fees int) *wire.Transaction {
 		exc := wire.NewTxOutput(script.Script.LockingScript(fromPubKeyHash), amountGot - (amount + fees))
 		outputs = append(outputs, exc)
 	}
-
 	tx := &wire.Transaction{
 		Version: []byte{conf.VERSION},
 		InCounter: util.EncodeInt(len(inputs)),
@@ -99,18 +98,18 @@ func createTx(from string, to string, amount int, fees int) *wire.Transaction {
 		OutCounter: util.EncodeInt(len(outputs)),
 		Outputs: outputs,
 	}
+
 	prevTXs := make(map[string]*wire.Transaction)
 	//on récupère la liste des transactions précédant
 	//la liste des inputs de la tx
 	for _, in := range tx.Inputs {
 		prevTx, _, _ := b.GetTxByHash(in.PrevTransactionHash)
-		txid := hex.EncodeToString(tx.GetHash())
+		txid := hex.EncodeToString(prevTx.GetHash())
 		prevTXs[txid] = prevTx
 	}
-
 	//on signe la transaction
 	tx.Sign(prevTXs, inputsPrivKey, inputsPubKey)
-	return tx	
+	return tx
 }
 
 func TxCreateCli(){

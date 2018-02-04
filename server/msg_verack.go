@@ -2,7 +2,6 @@ package server
 
 import (
 	"log"
-	"fmt"
 )
 
 type MsgVerack struct {
@@ -17,6 +16,7 @@ func (s *Server) NewVerack(addrTo *NetAddress) *MsgVerack {
 }
 
 func (s *Server) sendVerack(addrTo *NetAddress) ([]byte, error) {
+	s.Log(true, "VerAck sent to:", addrTo.String())
 	payload := gobEncode(*s.NewVerack(addrTo))
 	request := append(commandToBytes("verack"), payload...)
 	return request, s.sendData(addrTo.String(), request)
@@ -28,6 +28,13 @@ func (s *Server) handleVerack(request []byte) {
 	if err := getPayload(request, &payload); err != nil {
 		log.Panic(err)
 	}
-	fmt.Println("Verack received from :", payload.AddrSender.String())
+	addr := payload.AddrSender.String()
+	s.Log(true, "VerAck received from :", addr)
 
+	p := s.peers[addr]
+	p.VerAckReceived()
+	s.peers[addr] = p
+	if p.IsVerAckReceived() && p.IsVersionSent() && p.HasHeSentVersion() {
+		s.sendAskAddr(payload.AddrSender)
+	}
 }

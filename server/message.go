@@ -17,15 +17,19 @@ func (s *Server) HandleConnexion(conn net.Conn) {
 	}
 	command := bytesToCommand(request[:conf.CommandLength])
 	switch command {
-/*	case "addr":
-		handleAddr(request)
-	case "block":
+	case "addr":
+		s.handleAddr(request)
+	/*case "block":
 		handleBlock(request)
 	case "inv":
 		handleInv(request, bc)
+*/
+	case "getaddr":
+		s.handleAskAddr(request)
 	case "getblocks":
-		handleGetBlocks(request, bc)
-	case "getdata":
+		s.handleAskBlocks(request)
+
+/*	case "getdata":
 		handleGetData(request, bc)
 	case "tx":
 		handleTx(request, bc)*/

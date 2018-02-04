@@ -9,12 +9,15 @@ import (
 	"sync"
 	"io"
 	"bytes"
+	"time"
 )
+
 
 
 type Server struct {
 	version 				int32
 
+	log						bool
 	//ip of user who run server
 	ipStatus				*NetAddress
 	chain			 		*b.Blockchain
@@ -23,14 +26,29 @@ type Server struct {
 	peers             		map[string]*serverPeer 
 }
 
-func NewServer() *Server {
+func NewServer(log bool) *Server {
 	s := &Server{
+		log: log,
 		version: conf.NodeVersion,
 		ipStatus: GetLocalNetAddr(),
 		peers: make(map[string]*serverPeer),
 		chain: b.BC,
 	}
 	return s
+}
+
+func (s *Server) Log(printTime bool, c... interface{}){
+	if (s.log == true){
+		if printTime == true {
+			fmt.Print(time.Now().Format("15:04:05.000000"))
+			fmt.Print(" ")
+		}
+		for _, seq := range c {
+			fmt.Print(seq)
+			fmt.Print(" ")
+		}
+		fmt.Print("\n")
+	}
 }
 
 func (s *Server) AddPeer(sp *serverPeer){
@@ -68,13 +86,21 @@ func (s *Server) StartServer(minerAddress string) {
 	}
 	defer ln.Close()
 
-	//si l'adresse du noeud n'est pas un node connu
-	if s.ipStatus.IsEqual(GetMainNode()) == false  {
-		//on envoie notre version de la blockchain au noeud principale
-		s.sendVersion(GetMainNode())
-	}
 	fmt.Println("Main node:", s.ipStatus.IsEqual(GetMainNode()) == true)
 	fmt.Println("Running on", s.ipStatus.String(), "\n")
+
+	//si l'adresse du noeud n'est pas un node connu
+	if s.ipStatus.IsEqual(GetMainNode()) == false  {
+
+		addr := GetMainNode().String()
+		s.AddPeer(NewServerPeer(addr))
+		//on envoie notre version de la blockchain au noeud principale
+		_, err := s.sendVersion(GetMainNode())
+		if err == nil {
+			s.peers[addr].VersionSent()
+		}
+	}
+	
 	for {
 		//attend le prochain appel
 		conn, err := ln.Accept()

@@ -9,6 +9,8 @@ import (
 	"log"
 )
 
+type Blocks []Blocks
+
 //Structure d'un Block
 type Block struct {
 	Size []byte //taille du block en octet
@@ -54,6 +56,14 @@ func (b *Block) Serialize() []byte {
 		log.Panic(err)
 	}
 	return result.Bytes()
+}
+
+func GetListBlocksHash(list map[string]*Block) [][]byte {
+	var ret [][]byte
+	for _, b := range list {
+		ret = append(ret, b.GetHash())
+	}
+	return ret
 }
 
 func (b *Block) GetSize() uint64 {
@@ -104,4 +114,3 @@ func NewBlock(txs []Transaction, prevBlockHash []byte, pubKeyCoinbase []byte, to
 
 	return block
 }
-

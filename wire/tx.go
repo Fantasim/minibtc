@@ -39,7 +39,6 @@ func (in *Input) GetSize() uint64 {
 	return 0
 }
 
-
 type Output struct {
 	Value []byte //[1-8]
 	TxScriptLength []byte //[1-9]
@@ -174,31 +173,24 @@ func (tx *Transaction) GetSize() uint64 {
 }
 
 //Signe une transaction avec le clé privé
-func (tx *Transaction) Sign(prevTxs map[string]*Transaction, inputsPrivKey []ecdsa.PrivateKey, inputsPubKey []string){
+func (tx *Transaction) Sign(prevTxs map[string]*Transaction, inputsPrivKey []ecdsa.PrivateKey, inputsPubKey [][]byte){
 	//si la transaction est coinbase
 	if tx.IsCoinbase(){
 		return
 	}
-	
-	//on fait une copie de la transaction
-	var txCopy *Transaction
-	txCopy = tx
-	
-	for idx, _ := range txCopy.Inputs {
-		//on transforme la transaction en string
-		dataToSign := fmt.Sprintf("%x\n", txCopy)
-
+	for idx, in := range tx.Inputs {
 		//on signe les données
-		r, s, err := ecdsa.Sign(rand.Reader, &inputsPrivKey[idx], []byte(dataToSign))
+		prevTxid := hex.EncodeToString(in.PrevTransactionHash)
+		r, s, err := ecdsa.Sign(rand.Reader, &inputsPrivKey[idx], prevTxs[prevTxid].Serialize())
 		if err != nil {
 			fmt.Println(err)
 			log.Panic(err)
 		}
+
 		signature := append(r.Bytes(), s.Bytes()...)
 		//on update l'input avec un nouvel input identique 
 		//mais comprenant le bon scriptSig
-		pubKeyHash := util.Ripemd160(util.Sha256([]byte(inputsPubKey[idx]))) 
-		tx.Inputs[idx] = NewTxInput(tx.Inputs[idx].PrevTransactionHash, tx.Inputs[idx].Vout, script.Script.UnlockingScript(signature, pubKeyHash))
+		tx.Inputs[idx] = NewTxInput(tx.Inputs[idx].PrevTransactionHash, tx.Inputs[idx].Vout, script.Script.UnlockingScript(signature, inputsPubKey[idx]))
 	}
 }
 

@@ -13,7 +13,6 @@ func blockchainUsage(){
 	fmt.Println("\t blockchain_print")
 }
 
-
 func blockchainCli(){
 	blockchainCMD := flag.NewFlagSet("blockchain", flag.ExitOnError)
 	remove := blockchainCMD.Bool("remove", false, "Remove current blockchain if exist")

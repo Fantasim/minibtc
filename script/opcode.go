@@ -4,6 +4,11 @@ import (
 	"errors"
 	"bytes"
 	"tway/util"
+	"math/big"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"fmt"
+	"encoding/hex"
 )
 
 type opcode struct {
@@ -244,23 +249,45 @@ func opcodeHash160(op *parsedOpcode, vm *Engine) error {
 
 // Stack transformation: [... signature pubkey] -> [... bool]
 func opcodeCheckSig(op *parsedOpcode, vm *Engine) error {
-	/*pkBytes, err := vm.dstack.Pop()
-	
+	pkBytes, err := vm.dstack.Pop()
 	if err != nil {
 		return err
 	}
+	fmt.Println("pubk", hex.EncodeToString(pkBytes))
 
+	x := big.Int{}
+	y := big.Int{}
+	keyLen := len(pkBytes)
+	fmt.Println("keyLen", keyLen)
+	x.SetBytes(pkBytes[:(keyLen / 2)])
+	y.SetBytes(pkBytes[(keyLen / 2):])
 	fullSigBytes, err := vm.dstack.Pop()
 	if err != nil {
 		return err
 	}
 
-	// The signature actually needs needs to be longer than this, but at
-	// least 1 byte is needed for the hash type below.  The full length is
-	// checked depending on the script flags and upon parsing the signature.
-	if len(fullSigBytes) < 1 {
-		vm.dstack.PushBool(false)
-		return nil
-	}*/
+	fmt.Println("sig", hex.EncodeToString(fullSigBytes))
+	
+	r := big.Int{}
+	s := big.Int{}
+	sigLen := len(fullSigBytes)
+	fmt.Println("sigLen", sigLen)
+	r.SetBytes(fullSigBytes[:(sigLen / 2)])
+	s.SetBytes(fullSigBytes[(sigLen / 2):])
+
+	txid := hex.EncodeToString(vm.tx.Serialize())
+	
+	curve := elliptic.P256()
+
+	rawPubKey := ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}
+
+	var valid bool
+	if ecdsa.Verify(&rawPubKey, vm.prevTxs[txid].Serialize(), &r, &s) == false {
+		valid = false
+	} else {
+		valid = true
+	}
+	vm.dstack.PushBool(valid)
+	fmt.Println(valid)
 	return nil
 }

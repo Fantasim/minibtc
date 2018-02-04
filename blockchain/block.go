@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"github.com/boltdb/bolt"
 	"time"
+	"strconv"
 	"fmt"
 
 )
@@ -97,4 +98,21 @@ func GetTotalFees(list []wire.Transaction) int {
 		total_fees += fees
 	}
 	return total_fees
+}
+
+func (b *Blockchain) GetNBlocksNextToHeight(height int) map[string]*wire.Block {
+	var list = make(map[string]*wire.Block)
+	
+	be := NewExplorer()
+	fmt.Println(b.Height)
+	for i := height; i < b.Height; i++ {
+		block := be.Next()
+		if len(list) == conf.MaxBlockPerMsg || block == nil{
+			break
+		}
+		if (b.Height - i) < conf.MaxBlockPerMsg {
+			list[strconv.Itoa(i)] = block
+		}
+	}
+	return list
 }

@@ -3,6 +3,7 @@ package script
 import (
 	"fmt"
 	"errors"
+	"tway/util"
 )
 
 
@@ -12,6 +13,9 @@ type Engine struct {
 
 	dstack          stack // data stack
 	astack          stack // alt stack
+	tx				util.Transaction
+	prevTxs 		map[string]util.Transaction
+	txIdx			int
 }
 
 func (engine *Engine) PrintScript(idx int){
@@ -28,9 +32,12 @@ func (engine *Engine) PrintScript(idx int){
 }
 
 //Genère un pointeur vers une structure engine
-func NewEngine() *Engine {
+func NewEngine(prevTxs map[string]util.Transaction, tx util.Transaction, idx int) *Engine {
 	engine := new(Engine)
 	engine.scripts = make([][]parsedOpcode, 1)
+	engine.tx = tx
+	engine.prevTxs = prevTxs
+	engine.txIdx = idx
 	return engine	
 }
 
@@ -73,7 +80,7 @@ func (engine *Engine) Run(initialScript [][]byte) error {
 		return errors.New("empty")
 	}
 	//affichage du script
-	engine.PrintScript(0)
+//	engine.PrintScript(0)
 	var i = 0
 	for i < len(engine.scripts[0]) {
 		//Pour chaque ordre du script, effectue la function correspondante
@@ -94,9 +101,9 @@ func (engine *Engine) Run(initialScript [][]byte) error {
 		//on ajoute la copie dans la tableau
 		engine.scripts = append(engine.scripts, newLineScript)
 		//on affiche la stack
-		engine.dstack.PrintStack()
+//		engine.dstack.PrintStack()
 		//on affiche la nouvelle copie du script
-		engine.PrintScript(i + 1)
+//		engine.PrintScript(i + 1)
 		i++
 	}
 	return nil

@@ -58,10 +58,18 @@ func printAdvanced(){
 		fmt.Printf("Unix time: %d\n", util.DecodeInt(block.Header.Time))
 		fmt.Printf("Difficulty: %d\n", util.DecodeInt(block.Header.Bits))
 		fmt.Printf("Txs: %d\n", len(block.Transactions))
+
 		for idx, tx := range block.Transactions {
 			fmt.Printf("\t=== Tx [%d] ===\n", idx)
 			fmt.Printf("\t Coinbase: %t\n", tx.IsCoinbase())
 			fmt.Printf("\t Hash: %x\n", tx.GetHash())
+			if tx.IsCoinbase() == false {
+				fmt.Println()
+				for idx, in := range tx.Inputs {
+					fmt.Printf("\t inputs[%d] Value: %s\n", idx, script.Script.String(in.ScriptSig))
+				}
+				fmt.Println()
+			}
 			for idx, out := range tx.Outputs {
 				fmt.Printf("\t output[%d] Value: %d\n", idx, util.DecodeInt(out.Value))
 				fmt.Printf("\t output[%d] scriptPubKey: %s\n", idx, script.Script.String(out.ScriptPubKey))
