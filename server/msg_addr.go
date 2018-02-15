@@ -59,4 +59,5 @@ func (s *Server) handleAddr(request []byte) {
 	s.Log(false, "-", nbNewPeers , "nouveaux pairs")
 	unTreatedPeers := s.ListOfUntreatedPeers()
 	go s.treatPeersAfterPong(unTreatedPeers)
+	
 }

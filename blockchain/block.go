@@ -104,7 +104,6 @@ func (b *Blockchain) GetNBlocksNextToHeight(height int) map[string]*wire.Block {
 	var list = make(map[string]*wire.Block)
 	
 	be := NewExplorer()
-	fmt.Println(b.Height)
 	for i := height; i < b.Height; i++ {
 		block := be.Next()
 		if len(list) == conf.MaxBlockPerMsg || block == nil{

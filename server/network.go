@@ -52,5 +52,6 @@ func (s *Server) treatPeersAfterPong(unTreatedPeers map[string]*serverPeer){
 				delete(unTreatedPeers, unTreatedaddr)
 			}
 		}
+		time.Sleep(500 * time.Millisecond)
 	}
 }

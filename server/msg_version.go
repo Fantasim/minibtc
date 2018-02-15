@@ -3,6 +3,7 @@ package server
 import (
 	"time"
 	conf "tway/config"
+	"tway/blockchain"
 	"log"
 )
 
@@ -55,6 +56,13 @@ func (s *Server) handleVersion(request []byte) {
 	s.Log(false, "\t - Block height:", payload.LastBlock)
 	s.Log(false, "\t - Version:", payload.ProtocolVersion, "\n")
 
+	if blockchain.BC.Height < payload.LastBlock {
+		s.sendAskBlocks(payload.AddrSender)
+		//lui demander des blocks
+	}
+
+	//établie les informations concernant le pair
+	//envoie un verack et sa version si non fait.
 	go func(){
 		addr := payload.AddrSender.String()
 		s.AddPeer(NewServerPeer(addr))
