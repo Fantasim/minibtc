@@ -21,9 +21,14 @@ func (s *Server) rangeTxList(data [][]byte){
 func (s *Server) rangeBlockList(addrTo *NetAddress, data [][]byte, toSP *serverPeer){
 	for _, item := range data {
 		if b, _ := s.chain.GetBlockByHash(item); b == nil {
-			_, err := s.sendGetData(addrTo, item, "block")
-			if err == nil {
-				s.blockmanager.StartDownloadBlock(hex.EncodeToString(item), toSP)
+
+			hashBlock := hex.EncodeToString(item)
+
+			if s.blockmanager.download[hashBlock] == nil {
+				_, err := s.sendGetData(addrTo, item, "block")
+				if err == nil {
+					s.blockmanager.StartDownloadBlock(hashBlock, toSP)
+				}
 			}
 		}
 	}
