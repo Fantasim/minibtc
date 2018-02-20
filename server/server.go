@@ -21,6 +21,8 @@ type Server struct {
 	ipStatus				*NetAddress
 	chain			 		*b.Blockchain
 
+
+	blockmanager			*blockManager
 	mu					 	sync.Mutex
 	peers             		map[string]*serverPeer 
 }
@@ -31,6 +33,7 @@ func NewServer(log bool) *Server {
 		version: conf.NodeVersion,
 		ipStatus: GetLocalNetAddr(),
 		peers: make(map[string]*serverPeer),
+		blockmanager: NewBlockManager(),
 		chain: b.BC,
 	}
 	return s
@@ -85,8 +88,10 @@ func (s *Server) StartServer(minerAddress string) {
 	}
 	defer ln.Close()
 
-	fmt.Println("Main node:", s.ipStatus.IsEqual(GetMainNode()) == true)
-	fmt.Println("Running on", s.ipStatus.String(), "\n")
+	fmt.Println("Running on", s.ipStatus.String())
+	fmt.Println("Current chain height:", b.BC.Height)
+	fmt.Println("Main node:", s.ipStatus.IsEqual(GetMainNode()) == true, "\n")
+	
 
 	//si l'adresse du noeud n'est pas un node connu
 	if s.ipStatus.IsEqual(GetMainNode()) == false  {

@@ -10,7 +10,7 @@ import (
 type MsgVersion struct {
 	// Version of the protocol the node is using.
 	ProtocolVersion int32
-	// Time the message was generated.  This is encoded as an int64 on the wire.
+	// Time the message was generated.  This is encoded as an int64 on the twayutil.
 	Timestamp time.Time
 	// Address of the remote peer.
 	AddrReceiver *NetAddress
@@ -57,7 +57,7 @@ func (s *Server) handleVersion(request []byte) {
 	s.Log(false, "\t - Version:", payload.ProtocolVersion, "\n")
 
 	if blockchain.BC.Height < payload.LastBlock {
-		s.sendAskBlocks(payload.AddrSender)
+		s.sendAskBlocks(payload.AddrSender, [2]int{blockchain.BC.Height + 1, payload.LastBlock})
 		//lui demander des blocks
 	}
 

@@ -13,7 +13,7 @@ var ErrInvalidNetAddr = errors.New("provided net.Addr is not a net.TCPAddr")
 // it was last seen, the services it supports, its IP address, and port.
 type NetAddress struct {
 	// Last time the address was seen.  This is, unfortunately, encoded as a
-	// uint32 on the wire and therefore is limited to 2106.  This field is
+	// uint32 on the twayutil and therefore is limited to 2106.  This field is
 	// not present in the decred version message (MsgVersion) nor was it
 	// added until protocol version >= NetAddressTimeVersion.
 	Timestamp time.Time
@@ -22,7 +22,7 @@ type NetAddress struct {
 	// IP address of the peer.
 	IP net.IP
 
-	// Port the peer is using.  This is encoded in big endian on the wire
+	// Port the peer is using.  This is encoded in big endian on the twayutil
 	// which differs from most everything else.
 	Port uint16
 }

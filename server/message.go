@@ -21,13 +21,17 @@ func (s *Server) HandleConnexion(conn net.Conn) {
 		s.handleAddr(request)
 	/*case "block":
 		handleBlock(request)
+	*/
+	case "block":
+		s.handleBlock(request)
 	case "inv":
-		handleInv(request, bc)
-*/
+		s.handleInv(request)
 	case "getaddr":
 		s.handleAskAddr(request)
 	case "getblocks":
 		s.handleAskBlocks(request)
+	case "getdata":
+		s.handleGetData(request)
 	case "ping":
 		s.handlePing(request)
 	case "pong":
