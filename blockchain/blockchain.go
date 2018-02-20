@@ -2,7 +2,7 @@ package blockchain
 
 import (
 	"github.com/boltdb/bolt"
-	"tway/wire"
+	"tway/twayutil"
 	"tway/util"
 	"errors"
 	"encoding/hex"
@@ -53,7 +53,7 @@ func (b *Blockchain) getHeight() {
 }
 
 //Ajoute un block à la blockchain
-func (b *Blockchain) AddBlock(block *wire.Block) error {
+func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 	db := b.DB
 
 	blockHash := block.GetHash()
@@ -75,7 +75,7 @@ func (b *Blockchain) AddBlock(block *wire.Block) error {
 		//recupere le hash du block ayant la plus hauteur hauteur
 		lastHash := b.Get([]byte("l"))
 		lastBlockData := b.Get(lastHash)
-		lastBlock := wire.DeserializeBlock(lastBlockData)
+		lastBlock := twayutil.DeserializeBlock(lastBlockData)
 		lastBlockHash := lastBlock.GetHash()
 
 		if bytes.Compare(block.Header.HashPrevBlock, lastBlockHash) != 0 {
@@ -102,8 +102,8 @@ func (b *Blockchain) AddBlock(block *wire.Block) error {
 }
 
 //Récupère la totalité des utxos de la chain
-func (b *Blockchain) FindUTXO() map[string]wire.TxOutputs {
-	utxo := make(map[string]wire.TxOutputs)
+func (b *Blockchain) FindUTXO() map[string]twayutil.TxOutputs {
+	utxo := make(map[string]twayutil.TxOutputs)
 	spentTXOs := make(map[string][]int)
 	e := NewExplorer()
 	

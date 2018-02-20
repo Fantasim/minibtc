@@ -4,7 +4,7 @@ import (
 	"os"
 	"github.com/boltdb/bolt"
 	conf "tway/config"
-	"tway/wire"
+	"tway/twayutil"
 )
 
 func dbExists() bool {
@@ -42,7 +42,7 @@ func RemoveBlockchainDB() error {
 
 
 //Créer une nouvelle blockchain avec le block genese contenant une tx coinbase
-func CreateBlockchainDB(genesis *wire.Block) error {
+func CreateBlockchainDB(genesis *twayutil.Block) error {
 	db, err := bolt.Open(conf.DB_FILE, 0600, nil)
 	if err != nil {
 		return err

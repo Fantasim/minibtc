@@ -1,7 +1,7 @@
 package blockchain
 
 import (
-	"tway/wire"
+	"tway/twayutil"
 	"bytes"
 	"tway/util"
 	"encoding/hex"
@@ -9,7 +9,7 @@ import (
 
 //Récupère une transaction par son hash, avec le block dans lequel
 //se trouve la transaction, ainsi que la hauteur du block
-func GetTxByHash(hash []byte) (*wire.Transaction, *wire.Block, int) {
+func GetTxByHash(hash []byte) (*twayutil.Transaction, *twayutil.Block, int) {
 	be := NewExplorer()
 	var i = BC.Height
 	for i > 0 {
@@ -24,8 +24,8 @@ func GetTxByHash(hash []byte) (*wire.Transaction, *wire.Block, int) {
 	return nil, nil, -1
 }
 
-func GetPrevTxs(tx *wire.Transaction) map[string]*wire.Transaction {
-	prevTXs := make(map[string]*wire.Transaction)
+func GetPrevTxs(tx *twayutil.Transaction) map[string]*twayutil.Transaction {
+	prevTXs := make(map[string]*twayutil.Transaction)
 	for _, in := range tx.Inputs {
 		prevTx, _, _ := GetTxByHash(in.PrevTransactionHash)
 		prevTXs[hex.EncodeToString(in.PrevTransactionHash)] = prevTx

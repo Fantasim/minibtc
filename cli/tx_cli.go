@@ -6,7 +6,7 @@ import (
 	"tway/util"
 	"crypto/ecdsa"
 	"tway/script"
-	"tway/wire"
+	"tway/twayutil"
 	"tway/wallet"
 	conf "tway/config"
 	b "tway/blockchain"
@@ -21,11 +21,11 @@ func TxPrintUsage(){
 	fmt.Println("\t tx_create")
 }
 
-func createTx(from string, to string, amount int, fees int) *wire.Transaction {
-	var inputs []wire.Input
+func createTx(from string, to string, amount int, fees int) *twayutil.Transaction {
+	var inputs []twayutil.Input
 	var inputsPubKey [][]byte
 	var inputsPrivKey []ecdsa.PrivateKey
-	var outputs []wire.Output
+	var outputs []twayutil.Output
 	var localUnspents []wallet.LocalUnspentOutput
 	var amountGot int
 
@@ -63,7 +63,7 @@ func createTx(from string, to string, amount int, fees int) *wire.Transaction {
 	for _, localUs := range localUnspents {
 		var emptyScript [][]byte
 		//on génère un input à partir de l'output
-		input := wire.NewTxInput(localUs.TxID, util.EncodeInt(localUs.Output), emptyScript)
+		input := twayutil.NewTxInput(localUs.TxID, util.EncodeInt(localUs.Output), emptyScript)
 		//et on l'ajoute à la liste
 		inputs = append(inputs, input)
 		//on ajoute dans un tableau de string la clé publique correspondant 
@@ -78,7 +78,7 @@ func createTx(from string, to string, amount int, fees int) *wire.Transaction {
 	}
 
 	//on génére l'output vers l'address de notre destinaire
-	out := wire.NewTxOutput(script.Script.LockingScript(toPubKeyHash), amount)
+	out := twayutil.NewTxOutput(script.Script.LockingScript(toPubKeyHash), amount)
 	outputs = append(outputs, out)
 	
 	//Si le montant récupére par les wallets locaux est supérieur
@@ -88,10 +88,10 @@ func createTx(from string, to string, amount int, fees int) *wire.Transaction {
 		fromPubKeyHash := wallet.HashPubKey(localUnspents[len(localUnspents) - 1].W.PublicKey)
 		//on génére un output vers le dernier output de la liste d'utxo récupéré
 		//et on envoie l'excédant
-		exc := wire.NewTxOutput(script.Script.LockingScript(fromPubKeyHash), amountGot - (amount + fees))
+		exc := twayutil.NewTxOutput(script.Script.LockingScript(fromPubKeyHash), amountGot - (amount + fees))
 		outputs = append(outputs, exc)
 	}
-	tx := &wire.Transaction{
+	tx := &twayutil.Transaction{
 		Version: []byte{conf.VERSION},
 		InCounter: util.EncodeInt(len(inputs)),
 		Inputs: inputs,
@@ -99,7 +99,7 @@ func createTx(from string, to string, amount int, fees int) *wire.Transaction {
 		Outputs: outputs,
 	}
 
-	prevTXs := make(map[string]*wire.Transaction)
+	prevTXs := make(map[string]*twayutil.Transaction)
 	//on récupère la liste des transactions précédant
 	//la liste des inputs de la tx
 	for _, in := range tx.Inputs {
@@ -122,7 +122,7 @@ func TxCreateCli(){
 
 	if *to != "" && *amount > 0 {
 		tx := createTx(*from, *to, *amount, *fees)
-		NewBlock([]wire.Transaction{*tx}, *fees)
+		NewBlock([]twayutil.Transaction{*tx}, *fees)
 	} else {
 		TxCreateUsage()
 	}

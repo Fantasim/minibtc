@@ -2,7 +2,7 @@ package blockchain
 
 import (
 	"github.com/boltdb/bolt"
-	"tway/wire"
+	"tway/twayutil"
 	"tway/util"
 	"encoding/hex"
 	"log"
@@ -38,7 +38,7 @@ func (utxo *UTXOSet) GetUnspentOutputsByPubKeyHash(pubKeyHash []byte, amount int
 
 		//Pour chaque transaction comportant des outputs non dépensés
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			outs := wire.DeserializeTxOutputs(v)
+			outs := twayutil.DeserializeTxOutputs(v)
 			
 			//pour chaque output non dépnesé de la tx
 			for outIdx, out := range outs.Outputs {

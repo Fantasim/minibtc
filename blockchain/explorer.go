@@ -4,7 +4,7 @@ import (
 	"log"
 
 	conf "tway/config"
-	wire "tway/wire"
+	twayutil "tway/twayutil"
 	bolt "github.com/boltdb/bolt"
 	"bytes"
 )
@@ -21,18 +21,18 @@ func NewExplorer() *BlockchainExplorer {
 
 //Retourne le block suivant 
 //commence par le block correspondant au tip
-func (be *BlockchainExplorer) Next() *wire.Block{
+func (be *BlockchainExplorer) Next() *twayutil.Block{
 	//Si le block est genese
 	if bytes.Compare(be.CurrentHash, conf.GENESIS_BLOCK_PREVHASH) == 0 {
 		return nil
 	}
 
-	var block *wire.Block
+	var block *twayutil.Block
 
 	err := be.DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BLOCK_BUCKET))
 		encodedBlock := b.Get(be.CurrentHash)
-		block = wire.DeserializeBlock(encodedBlock)
+		block = twayutil.DeserializeBlock(encodedBlock)
 		return nil
 	})
 	if err != nil {

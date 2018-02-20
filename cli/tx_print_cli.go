@@ -3,7 +3,7 @@ package cli
 import ( 
 	"fmt"
 	"tway/util"
-	"tway/wire"
+	"tway/twayutil"
 	"tway/script"
 	b "tway/blockchain"
 	"flag"
@@ -16,7 +16,7 @@ func TxCreateUsage(){
 	fmt.Println(" --amount \t amount to send")
 }
 
-func printTxBlockchain(tx *wire.Transaction, block *wire.Block, height int){
+func printTxBlockchain(tx *twayutil.Transaction, block *twayutil.Block, height int){
 	fmt.Printf("Block height: %d\n", height)
 	fmt.Printf("Block hash: %x\n\n", block.GetHash())
 	fmt.Printf("== TX %x ==\n", tx.GetHash())
@@ -38,7 +38,7 @@ func printTxBlockchain(tx *wire.Transaction, block *wire.Block, height int){
 	}
 }
 
-func printTx(tx *wire.Transaction){
+func printTx(tx *twayutil.Transaction){
 	fmt.Printf("== TX %x ==\n", tx.GetHash())
 	fmt.Printf("    Coinbase: %t\n", tx.IsCoinbase())
 	fmt.Printf("    Version: %x\n", tx.Version)

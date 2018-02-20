@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"tway/wire"
+	"tway/twayutil"
 	"tway/util"
 	"tway/script"
 	"tway/wallet"
@@ -19,7 +19,7 @@ func BlockPrintUsage(){
 }
 
 
-func printBlockInChain(block *wire.Block, height int){
+func printBlockInChain(block *twayutil.Block, height int){
 	fmt.Printf("Block height: %d\n", height)
 	fmt.Printf("Hash: %x\n", block.GetHash())
 	fmt.Printf("Merkle root: %x\n", block.Header.HashMerkleRoot)
@@ -38,7 +38,7 @@ func printBlockInChain(block *wire.Block, height int){
 	}
 }
 
-func printBlock(block *wire.Block){
+func printBlock(block *twayutil.Block){
 	fmt.Printf("Hash: %x\n", block.GetHash())
 	fmt.Printf("Merkle root: %x\n", block.Header.HashMerkleRoot)
 	fmt.Printf("Size: %d\n", util.DecodeInt(block.Size))
@@ -56,8 +56,8 @@ func printBlock(block *wire.Block){
 	}
 }
 
-func NewBlock(txs []wire.Transaction, fees int){
-	block := wire.NewBlock(txs, b.BC.Tip, wallet.RandomWallet().PublicKey, fees)
+func NewBlock(txs []twayutil.Transaction, fees int){
+	block := twayutil.NewBlock(txs, b.BC.Tip, wallet.RandomWallet().PublicKey, fees)
 	//Créer une target de proof of work
 	pow := b.NewProofOfWork(block)
 	//cherche le nonce correspondant à la target
@@ -87,7 +87,7 @@ func BlockPrintCli(){
 			printBlockInChain(block, height)
 		}
 	} else if *new == true {
-		var empty []wire.Transaction
+		var empty []twayutil.Transaction
 		NewBlock(empty, 0)
 	} else {
 		BlockPrintUsage()

@@ -1,13 +1,14 @@
 package blockchain
 
 import (
-	wire "tway/wire"
+	twayutil "tway/twayutil"
 	conf "tway/config"
 	util "tway/util"
 	"bytes"
 	"github.com/boltdb/bolt"
 	"time"
 	"strconv"
+	"errors"
 	"fmt"
 
 )
@@ -28,15 +29,18 @@ func (b *Blockchain) GetBlockHeight(blockHash []byte) int {
 	return i
 }
 
-func (b *Blockchain) GetBlockByHash(hash []byte) (*wire.Block, int) {
-	var block *wire.Block
+func (b *Blockchain) GetBlockByHash(hash []byte) (*twayutil.Block, int) {
+	var block *twayutil.Block
 	
 	db := b.DB
 
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BLOCK_BUCKET))
 		encodedBlock := b.Get(hash)
-		block = wire.DeserializeBlock(encodedBlock)
+		if len(encodedBlock) == 0 {
+			return errors.New("Block doesn't exist")
+		}
+		block = twayutil.DeserializeBlock(encodedBlock)
 		return nil
 	})
 	if err != nil {
@@ -45,13 +49,13 @@ func (b *Blockchain) GetBlockByHash(hash []byte) (*wire.Block, int) {
 	return block, b.GetBlockHeight(block.GetHash())
 }
 
-func GenesisBlock(pubKey []byte) *wire.Block {
+func GenesisBlock(pubKey []byte) *twayutil.Block {
 	//créer une nouvelle transaction coinbase
-	tx := wire.NewCoinbaseTx(pubKey, 0)
+	tx := twayutil.NewCoinbaseTx(pubKey, 0)
 
 	//créer un nouveau block et ajoute la structure
-	block := &wire.Block{
-		Transactions: []wire.Transaction{tx},
+	block := &twayutil.Block{
+		Transactions: []twayutil.Transaction{tx},
 		Counter: 1,
 	}
 
@@ -60,7 +64,7 @@ func GenesisBlock(pubKey []byte) *wire.Block {
 	HashMerkleRoot := util.NewMerkleTree([][]byte{tx.Serialize()}).RootNode.Data
 
 	//Créer le header du block
-	header := wire.BlockHeader{
+	header := twayutil.BlockHeader{
 		Version: []byte{conf.VERSION},
 		HashPrevBlock: conf.GENESIS_BLOCK_PREVHASH,
 		HashMerkleRoot: HashMerkleRoot,
@@ -72,7 +76,7 @@ func GenesisBlock(pubKey []byte) *wire.Block {
 	return block
 }
 
-func MineBlock(b *wire.Block) error {
+func MineBlock(b *twayutil.Block) error {
 	//Créer une target de proof of work
 	pow := NewProofOfWork(b)
 	//cherche le nonce correspondant à la target
@@ -87,7 +91,7 @@ func MineBlock(b *wire.Block) error {
 	return nil
 }
 
-func GetTotalFees(list []wire.Transaction) int {
+func GetTotalFees(list []twayutil.Transaction) int {
 	var total_fees = 0
 	for _, tx := range list {
 		total_inputs, total_outputs, fees := GetAmounts(tx.GetHash())
@@ -100,13 +104,13 @@ func GetTotalFees(list []wire.Transaction) int {
 	return total_fees
 }
 
-func (b *Blockchain) GetNBlocksNextToHeight(height int) map[string]*wire.Block {
-	var list = make(map[string]*wire.Block)
+func (b *Blockchain) GetNBlocksNextToHeight(height int, max int) map[string]*twayutil.Block {
+	var list = make(map[string]*twayutil.Block)
 	
 	be := NewExplorer()
 	for i := height; i < b.Height; i++ {
 		block := be.Next()
-		if len(list) == conf.MaxBlockPerMsg || block == nil{
+		if len(list) == conf.MaxBlockPerMsg || block == nil || len(list) == max {
 			break
 		}
 		if (b.Height - i) < conf.MaxBlockPerMsg {
