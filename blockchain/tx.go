@@ -26,6 +26,7 @@ func GetTxByHash(hash []byte) (*twayutil.Transaction, *twayutil.Block, int) {
 
 func GetPrevTxs(tx *twayutil.Transaction) map[string]*twayutil.Transaction {
 	prevTXs := make(map[string]*twayutil.Transaction)
+
 	for _, in := range tx.Inputs {
 		prevTx, _, _ := GetTxByHash(in.PrevTransactionHash)
 		prevTXs[hex.EncodeToString(in.PrevTransactionHash)] = prevTx
@@ -33,21 +34,21 @@ func GetPrevTxs(tx *twayutil.Transaction) map[string]*twayutil.Transaction {
 	return prevTXs
 }
 
-//Retourne les informations concernant les montants de la transaction
-//présent dans les inputs ou outputs
-//Cette fonction retourne :
-//montant total des inputs, montant total des outputs, frais de transactions
-func GetAmounts(hash []byte) (int, int, int) {
-
-	var total_inputs = 0
+func GetAmountsOutput(tx *twayutil.Transaction) int {
 	var total_outputs = 0
-
-	tx, _, _ := GetTxByHash(hash)
-
-	if tx.IsCoinbase() == true {
-		return 0,0,0
+	for _, out := range tx.Outputs {
+		//on ajoute le montant au montant total redistribué vers une adresse.
+		total_outputs += util.DecodeInt(out.Value)
 	}
+	return total_outputs
+}
 
+func GetAmountsInput(tx *twayutil.Transaction) int {
+	var total_inputs = 0
+
+	if tx.IsCoinbase() {
+		return 0
+	}
 	//Pour chaque input de la tx
 	for _, in := range tx.Inputs {
 		//on recupere la transaction précédante de l'input
@@ -57,10 +58,21 @@ func GetAmounts(hash []byte) (int, int, int) {
 		//on ajoute le montant au montant total assemblés par les inputs
 		total_inputs += util.DecodeInt(out.Value)
 	}
-	//pour chaque output de la tx
-	for _, out := range tx.Outputs {
-		//on ajoute le montant au montant total redistribué vers une adresse.
-		total_outputs += util.DecodeInt(out.Value)
+	return total_inputs
+}
+
+//Retourne les informations concernant les montants de la transaction
+//présent dans les inputs ou outputs
+//Cette fonction retourne :
+//montant total des inputs, montant total des outputs, frais de transactions
+func GetAmounts(tx *twayutil.Transaction) (int, int, int) {
+	var total_inputs = GetAmountsInput(tx)
+	var total_outputs = GetAmountsOutput(tx)
+
+	if tx.IsCoinbase() {
+		return 0, total_outputs, 0
 	}
+
 	return total_inputs, total_outputs, total_inputs - total_outputs
 }
+
