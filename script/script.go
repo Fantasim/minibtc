@@ -3,6 +3,8 @@ package script
 import (
 	"tway/util"
 	"encoding/hex"
+	"tway/config"
+	"fmt"
 )
 
 var Script = new(script)
@@ -101,18 +103,22 @@ func (s *script) String(srpt [][]byte) string {
 	}
 	return ret
 }
-/*
-func TestScript(s func() [][]byte){
-	scrpt := s()
-	engine := NewEngine(util.Transaction{}, -1)
-	err := engine.Run(scrpt)
-	if err == nil {
-		fmt.Println("Script correct")
-	} else {
-		fmt.Println(err)
-		fmt.Println("Script incorrect")
+
+func (s *script) IsPayToPubKeyHash(scriptBytes [][]byte)bool{
+	engine := new(Engine)
+	engine.scripts = make([][]parsedOpcode, 1)
+	engine.ParseScript(scriptBytes)
+
+	if len(scriptBytes) == config.P2PKHSize {
+		fmt.Println("length signature:", len(scriptBytes[0]))
+		fmt.Println("length pubKey:", len(scriptBytes[1]))
+		fmt.Println("length pubKeyHash:", len(scriptBytes[4]))
+		return true
 	}
-}*/
+	return false
+}
+
+
 
 
 
