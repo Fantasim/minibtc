@@ -83,6 +83,14 @@ func DeserializeBlock(d []byte) *Block {
 	return &block
 }
 
+func GetMerkleHash(txs []Transaction) []byte {
+	//[]Transaction to [][]byte
+	txsDoubleByteArray := TransactionToByteDoubleArray(txs)
+
+	//recupère le merkle root de la liste de transaction
+	return util.NewMerkleTree(txsDoubleByteArray).RootNode.Data
+}
+
 func NewBlock(txs []Transaction, prevBlockHash []byte, pubKeyCoinbase []byte, total_fees int) *Block{
 	block := &Block{}
 	//Récupère un wallet aléatoire vers qui envoyer la transaction coinbase
@@ -96,17 +104,11 @@ func NewBlock(txs []Transaction, prevBlockHash []byte, pubKeyCoinbase []byte, to
 	block.Transactions = txs
 	block.Counter = uint(len(txs))
 
-	//[]Transaction to [][]byte
-	txsDoubleByteArray := TransactionToByteDoubleArray(txs)
-
-	//recupère le merkle root de la liste de transaction
-	HashMerkleRoot := util.NewMerkleTree(txsDoubleByteArray).RootNode.Data
-
 	//Header du block
 	header := BlockHeader{
 		Version: []byte{conf.VERSION},
 		HashPrevBlock: prevBlockHash,
-		HashMerkleRoot: HashMerkleRoot,
+		HashMerkleRoot: GetMerkleHash(txs),
 		Time:  util.EncodeInt(int(time.Now().Unix())),
 		Bits:  util.EncodeInt(1),
 	}
@@ -114,3 +116,4 @@ func NewBlock(txs []Transaction, prevBlockHash []byte, pubKeyCoinbase []byte, to
 
 	return block
 }
+
