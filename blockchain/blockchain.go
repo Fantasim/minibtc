@@ -56,12 +56,10 @@ func (b *Blockchain) getHeight() {
 func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 	db := b.DB
 
-	blockHash := block.GetHash()
-
-	//Vérifie la pow du block
-	if pow := NewProofOfWork(block); pow.Validate() == false {
-		return errors.New("Proof of work is not valid.")
+	if block == nil {
+		return errors.New("nil block")
 	}
+	blockHash := block.GetHash()
 
 	err := db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BLOCK_BUCKET))
@@ -81,7 +79,6 @@ func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 		if bytes.Compare(block.Header.HashPrevBlock, lastBlockHash) != 0 {
 			return errors.New("New block is not the tip's next block")
 		}
-
 		//ajoute le block dans la db
 		err := b.Put(blockHash, block.Serialize())
 		if err != nil {
