@@ -36,6 +36,10 @@ func (s *Server) handleBlock(request []byte) {
 	addr := payload.AddrSender.String()
 
 	block := twayutil.DeserializeBlock(payload.Data)
-	s.Log(true, "block "+ hex.EncodeToString(block.GetHash()) +" received from :", addr)
 	s.blockmanager.BlockDownloaded(block)
+	if block != nil {
+		s.Log(true, "block "+ hex.EncodeToString(block.GetHash()) +" received from :", addr)
+	} else {
+		s.Log(true, "wrong block received from :", addr)		
+	}
 }

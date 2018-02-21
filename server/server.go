@@ -12,7 +12,6 @@ import (
 	"time"
 )
 
-
 type Server struct {
 	version 				int32
 
