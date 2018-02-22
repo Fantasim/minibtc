@@ -13,8 +13,8 @@ type Engine struct {
 
 	dstack          stack // data stack
 	astack          stack // alt stack
-	tx				util.Transaction
-	prevTxs 		map[string]util.Transaction
+	tx				*util.Transaction
+	prevTxs 		map[string]*util.Transaction
 	txIdx			int
 }
 
@@ -32,7 +32,7 @@ func (engine *Engine) PrintScript(idx int){
 }
 
 //Genère un pointeur vers une structure engine
-func NewEngine(prevTxs map[string]util.Transaction, tx util.Transaction, idx int) *Engine {
+func NewEngine(prevTxs map[string]*util.Transaction, tx *util.Transaction, idx int) *Engine {
 	engine := new(Engine)
 	engine.scripts = make([][]parsedOpcode, 1)
 	engine.tx = tx
@@ -107,4 +107,12 @@ func (engine *Engine) Run(initialScript [][]byte) error {
 		i++
 	}
 	return nil
+}
+
+func (engine *Engine) IsScriptSucceed() bool {
+	if len(engine.dstack.stk) == 1{
+		b, _ := engine.dstack.PopBool()
+		return b
+	}
+	return false
 }
