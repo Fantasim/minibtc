@@ -5,7 +5,43 @@ import (
 	"bytes"
 	"tway/util"
 	"encoding/hex"
+	s "tway/script"
+	"errors"
 )
+
+//Cette fonction verifie chaque input de la transaction
+//execute le scriptSig de l'input avec le scriptPubKey de l'output lié (Tx précédente)
+func CheckIfTxIsCorrect(tx *twayutil.Transaction) error {
+	if tx.IsCoinbase() == true {
+		return nil
+	}
+
+	prevTXs := GetPrevTxs(tx)
+	for idx, in := range tx.Inputs {
+		prevHash := hex.EncodeToString(in.PrevTransactionHash)
+		vout := util.DecodeInt(in.Vout)
+		scriptPubKey := prevTXs[prevHash].Outputs[vout].ScriptPubKey
+		scriptSig := in.ScriptSig
+
+		scriptToRun := append(scriptSig, scriptPubKey...) 
+		if s.Script.IsPayToPubKeyHash(scriptToRun) == false {
+			return errors.New(WRONG_SCRIPT)
+		}
+		prevTXsUtil := make(map[string]*util.Transaction)
+		for hash, tx := range prevTXs {
+			prevTXsUtil[hash] = tx.ToTxUtil()
+		}
+		engine := s.NewEngine(prevTXsUtil, tx.ToTxUtil(), idx)
+		err := engine.Run(scriptToRun)
+		if err != nil {
+			return err
+		}
+		if engine.IsScriptSucceed() == false {
+			return errors.New(WRONG_SCRIPT)
+		}
+	}
+	return nil
+}
 
 //Récupère une transaction par son hash, avec le block dans lequel
 //se trouve la transaction, ainsi que la hauteur du block
