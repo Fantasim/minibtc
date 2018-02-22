@@ -99,13 +99,13 @@ func createTx(from string, to string, amount int, fees int) *twayutil.Transactio
 		Outputs: outputs,
 	}
 
-	prevTXs := make(map[string]*twayutil.Transaction)
+	prevTXs := make(map[string]*util.Transaction)
 	//on récupère la liste des transactions précédant
 	//la liste des inputs de la tx
 	for _, in := range tx.Inputs {
 		prevTx, _, _ := b.GetTxByHash(in.PrevTransactionHash)
 		txid := hex.EncodeToString(prevTx.GetHash())
-		prevTXs[txid] = prevTx
+		prevTXs[txid] = prevTx.ToTxUtil()
 	}
 	//on signe la transaction
 	tx.Sign(prevTXs, inputsPrivKey, inputsPubKey)
