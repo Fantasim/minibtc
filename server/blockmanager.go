@@ -58,7 +58,10 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block){
 
 	if bm.download[hash].timeToRetry == 0 {
 		err := bm.chain.CheckNewBlock(new)
-		if err != nil && (err.Error() == b.WRONG_POW_ERROR || err.Error() == b.WRONG_BLOCK_TIME_ERROR || err.Error() == b.WRONG_BLOCK_PUTS_VALUE) {
+		if err == nil || err.Error() == b.NO_NEXT_TO_TIP_ERROR {
+			//
+		} else {
+			fmt.Println(err)
 			delete(bm.download, hash)
 			return
 		}
@@ -80,13 +83,12 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block){
 		}()
 		return
 	}
-	err := b.BC.AddBlock(new)
+	err := bm.chain.AddBlock(new)
 	if err == nil {
-		fmt.Println("block successfully added on chain")
+		fmt.Printf("block %d - %s successfully added on chain", bm.chain.Height, hex.EncodeToString(new.GetHash()))
 		bm.download[hash].block = new
 		bm.download[hash].receivedAt = time.Now().UnixNano()
 	}
-	fmt.Println(err)
 }
 
 func (bm *blockManager) StartDownloadBlock(hash string, sp *serverPeer){
