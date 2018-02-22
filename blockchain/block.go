@@ -4,13 +4,11 @@ import (
 	twayutil "tway/twayutil"
 	conf "tway/config"
 	util "tway/util"
-	s "tway/script"
 	"bytes"
 	"github.com/boltdb/bolt"
 	"time"
 	"strconv"
 	"errors"
-	"encoding/hex"
 )
 
 func (b *Blockchain) CheckBlockTXs(block *twayutil.Block) error {
@@ -28,7 +26,7 @@ func (b *Blockchain) CheckBlockTXs(block *twayutil.Block) error {
 		//remove coinbase tx from block txs
 		txsWithoutCoinbase = append(block.Transactions[:0], block.Transactions[1:]...)
 	}
-	
+
 	total_inputs, total_outputs, fees := GetTotalAmounts(txsWithoutCoinbase)
 	//if total amount selected with input is not equals 
 	//to total amount added in outputs with fees
@@ -37,15 +35,9 @@ func (b *Blockchain) CheckBlockTXs(block *twayutil.Block) error {
 	}
 
 	for _, tx := range txs {
-		if tx.IsCoinbase() == false {
-			prevTXs := GetPrevTxs(&tx)
-			for _, in := range tx.Inputs {
-				hash := hex.EncodeToString(in.PrevTransactionHash)
-				vout := util.DecodeInt(in.Vout)
-				scriptPubKey := prevTXs[hash].Outputs[vout].ScriptPubKey
-				scriptSig := in.ScriptSig
-				s.Script.IsPayToPubKeyHash(append(scriptSig, scriptPubKey...))
-			}
+		err := CheckIfTxIsCorrect(&tx)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -192,9 +184,13 @@ func (b *Blockchain) CheckNewBlock(new *twayutil.Block) error {
 
 	//newBlockMerkleRoot := new.Header.HashMerkleRoot
 	newBlockTime := util.DecodeInt(new.Header.Time)
+	newBlockMerkle := new.Header.HashMerkleRoot
 
-	//TODO
-	//CHECK MERKLE ROOT
+	//HACK ERROR
+	//if merkle root doesn't correspond to a merkle root with block's txs
+	if bytes.Compare(newBlockMerkle, twayutil.GetMerkleHash(new.Transactions)) != 0 {
+		return errors.New(WRONG_MERKLE_HASH)
+	}
 
 	pow := NewProofOfWork(new)
 	//HACK ERROR OR COMPATIBILITY VERSION ERROR
