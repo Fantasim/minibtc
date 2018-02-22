@@ -55,7 +55,6 @@ func (b *Blockchain) getHeight() {
 //Ajoute un block à la blockchain
 func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 	db := b.DB
-
 	if block == nil {
 		return errors.New("nil block")
 	}
@@ -68,7 +67,7 @@ func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 		//si il existe deja
 		if blockInDb != nil {
 			fmt.Println("Le block", hex.EncodeToString(blockHash), "existe deja")
-			return nil
+			return errors.New("block already exists")
 		}
 		//recupere le hash du block ayant la plus hauteur hauteur
 		lastHash := b.Get([]byte("l"))
