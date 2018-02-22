@@ -3,6 +3,7 @@ package twayutil
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"time"
 	"tway/util"
 	conf "tway/config"
@@ -47,15 +48,18 @@ func (b *Block) GetHash() []byte {
 }
 
 //Serialize un block 
-func (b *Block) Serialize() []byte {
-	var result bytes.Buffer
-	encoder := gob.NewEncoder(&result)
-
-	err := encoder.Encode(b)
+func (bl *Block) Serialize() []byte {
+	b, err := json.Marshal(bl)
+	if err != nil {
+        log.Panic(err)
+	}
+	bu := new(bytes.Buffer)
+	enc := gob.NewEncoder(bu)
+	err = enc.Encode(b)
 	if err != nil {
 		log.Panic(err)
 	}
-	return result.Bytes()
+	return bu.Bytes()
 }
 
 func GetListBlocksHash(list map[string]*Block) [][]byte {
@@ -71,16 +75,17 @@ func (b *Block) GetSize() uint64 {
 }
 
 //Deserialize un block
-func DeserializeBlock(d []byte) *Block {
-	var block Block
+func DeserializeBlock(data []byte) *Block {
+	bl := new(Block)
+	var dataByte []byte
 
-	decoder := gob.NewDecoder(bytes.NewReader(d))
-	err := decoder.Decode(&block)
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+	err := decoder.Decode(&dataByte)
 	if err != nil {
 		log.Panic(err)
 	}
-
-	return &block
+	json.Unmarshal(dataByte, bl)
+	return bl
 }
 
 func GetMerkleHash(txs []Transaction) []byte {

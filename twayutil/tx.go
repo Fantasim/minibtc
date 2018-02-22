@@ -11,6 +11,7 @@ import (
 	"log"
 	"fmt"
 	"encoding/hex"
+	"encoding/json"
 )
 
 type TxInputs struct {
@@ -37,6 +38,15 @@ func NewTxInput(prevTransactionHash []byte, vout []byte, scriptSig [][]byte) Inp
 
 func (in *Input) GetSize() uint64 {
 	return 0
+}
+
+func (in *Input) ToInputUtil() *util.Input {
+	return &util.Input{
+		PrevTransactionHash: in.PrevTransactionHash,
+		ScriptSig: in.ScriptSig,
+		TxInScriptLen: in.TxInScriptLen,
+		Vout: in.Vout,
+	}
 }
 
 type Output struct {
@@ -80,6 +90,15 @@ func (output *Output) IsLockedWithPubKeyHash(pubKeyHash []byte) bool {
 	return true
 }
 
+func (out *Output) ToOutputUtil() *util.Output {
+	return &util.Output{
+		ScriptPubKey: out.ScriptPubKey,
+		TxScriptLength: out.TxScriptLength,
+		Value: out.Value,
+	}
+}
+
+
 //TxOutputs -> []byte
 func (outs *TxOutputs) Serialize() []byte {
 	var encoded bytes.Buffer
@@ -120,17 +139,32 @@ type Transaction struct {
 }
 
 //Transaction -> []byte
-func (tx Transaction) Serialize() []byte {
-	var encoded bytes.Buffer
-
-	enc := gob.NewEncoder(&encoded)
-	err := enc.Encode(tx)
+func (tx *Transaction) Serialize() []byte {
+	b, err := json.Marshal(tx)
+	if err != nil {
+        log.Panic(err)
+	}
+	bu := new(bytes.Buffer)
+	enc := gob.NewEncoder(bu)
+	err = enc.Encode(b)
 	if err != nil {
 		log.Panic(err)
 	}
-
-	return encoded.Bytes()
+	return bu.Bytes()
 }
+
+func DeserializeTransaction(data []byte) *Transaction {
+	var tx *Transaction
+	var dataByte []byte
+
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+	err := decoder.Decode(&dataByte)
+	if err != nil {
+		log.Panic(err)
+	}
+	json.Unmarshal(dataByte, tx)
+	return tx
+} 
 
 //Créer une transaction coinbase
 func NewCoinbaseTx(toPubKey []byte, fees int) Transaction {
@@ -173,7 +207,7 @@ func (tx *Transaction) GetSize() uint64 {
 }
 
 //Signe une transaction avec le clé privé
-func (tx *Transaction) Sign(prevTxs map[string]*Transaction, inputsPrivKey []ecdsa.PrivateKey, inputsPubKey [][]byte){
+func (tx *Transaction) Sign(prevTxs map[string]*util.Transaction, inputsPrivKey []ecdsa.PrivateKey, inputsPubKey [][]byte){
 	//si la transaction est coinbase
 	if tx.IsCoinbase(){
 		return
@@ -190,7 +224,7 @@ func (tx *Transaction) Sign(prevTxs map[string]*Transaction, inputsPrivKey []ecd
 		signature := append(r.Bytes(), s.Bytes()...)
 		//on update l'input avec un nouvel input identique 
 		//mais comprenant le bon scriptSig
-		tx.Inputs[idx] = NewTxInput(tx.Inputs[idx].PrevTransactionHash, tx.Inputs[idx].Vout, script.Script.UnlockingScript(signature, inputsPubKey[idx]))
+		tx.Inputs[idx] = NewTxInput(in.PrevTransactionHash, in.Vout, script.Script.UnlockingScript(signature, inputsPubKey[idx]))
 	}
 }
 
@@ -221,4 +255,31 @@ func (tx *Transaction) GetFees(prevTxs map[string]*Transaction) int {
 		}
 	}
 	return total_input - total_output
+}
+
+func InputsToInputsUtil(inputs []Input) []util.Input{
+	var ret []util.Input
+	for _, in := range inputs {
+		ret = append(ret, *in.ToInputUtil())
+	}
+	return ret
+}
+
+func OutputsToOutputsUtil(outputs []Output) []util.Output{
+	var ret []util.Output
+	for _, out := range outputs {
+		ret = append(ret, *out.ToOutputUtil())
+	}
+	return ret
+}
+
+func (tx *Transaction) ToTxUtil() *util.Transaction {
+	return &util.Transaction{
+		InCounter: tx.InCounter,
+		Inputs: InputsToInputsUtil(tx.Inputs),
+		OutCounter: tx.OutCounter,
+		Outputs: OutputsToOutputsUtil(tx.Outputs),
+		Version: tx.Version,
+		LockTime: tx.LockTime,
+	}
 }
