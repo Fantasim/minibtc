@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"fmt"
 	"encoding/hex"
 )
 
@@ -253,34 +252,29 @@ func opcodeCheckSig(op *parsedOpcode, vm *Engine) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("pubk", hex.EncodeToString(pkBytes))
 
 	x := big.Int{}
 	y := big.Int{}
 	keyLen := len(pkBytes)
-	fmt.Println("keyLen", keyLen)
 	x.SetBytes(pkBytes[:(keyLen / 2)])
 	y.SetBytes(pkBytes[(keyLen / 2):])
+
 	fullSigBytes, err := vm.dstack.Pop()
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("sig", hex.EncodeToString(fullSigBytes))
-	
 	r := big.Int{}
 	s := big.Int{}
 	sigLen := len(fullSigBytes)
-	fmt.Println("sigLen", sigLen)
 	r.SetBytes(fullSigBytes[:(sigLen / 2)])
 	s.SetBytes(fullSigBytes[(sigLen / 2):])
 
-	txid := hex.EncodeToString(vm.tx.Serialize())
+	txid := hex.EncodeToString(vm.tx.Inputs[vm.txIdx].PrevTransactionHash)
 	
 	curve := elliptic.P256()
 
 	rawPubKey := ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}
-
 	var valid bool
 	if ecdsa.Verify(&rawPubKey, vm.prevTxs[txid].Serialize(), &r, &s) == false {
 		valid = false
@@ -288,6 +282,5 @@ func opcodeCheckSig(op *parsedOpcode, vm *Engine) error {
 		valid = true
 	}
 	vm.dstack.PushBool(valid)
-	fmt.Println(valid)
 	return nil
 }
