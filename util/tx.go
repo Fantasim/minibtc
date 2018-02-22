@@ -3,6 +3,7 @@ package util
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"log"
 )
 
@@ -30,26 +31,29 @@ type Transaction struct {
 
 //Transaction -> []byte
 func (tx Transaction) Serialize() []byte {
-	var encoded bytes.Buffer
-
-	enc := gob.NewEncoder(&encoded)
-	err := enc.Encode(tx)
+	b, err := json.Marshal(tx)
+	if err != nil {
+        log.Panic(err)
+	}
+	bu := new(bytes.Buffer)
+	enc := gob.NewEncoder(bu)
+	err = enc.Encode(b)
 	if err != nil {
 		log.Panic(err)
 	}
-
-	return encoded.Bytes()
+	return bu.Bytes()
 }
 
 // DeserializeTransaction deserializes a transaction
 func DeserializeTransaction(data []byte) Transaction {
-	var transaction Transaction
+	var tx Transaction
+	var dataByte []byte
 
 	decoder := gob.NewDecoder(bytes.NewReader(data))
-	err := decoder.Decode(&transaction)
+	err := decoder.Decode(&dataByte)
 	if err != nil {
 		log.Panic(err)
 	}
-
-	return transaction
+	json.Unmarshal(dataByte, &tx)
+	return tx
 }
