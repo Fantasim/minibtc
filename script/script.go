@@ -4,7 +4,6 @@ import (
 	"tway/util"
 	"encoding/hex"
 	"tway/config"
-	"fmt"
 )
 
 var Script = new(script)
@@ -110,10 +109,17 @@ func (s *script) IsPayToPubKeyHash(scriptBytes [][]byte)bool{
 	engine.ParseScript(scriptBytes)
 
 	if len(scriptBytes) == config.P2PKHSize {
-		fmt.Println("length signature:", len(scriptBytes[0]))
-		fmt.Println("length pubKey:", len(scriptBytes[1]))
-		fmt.Println("length pubKeyHash:", len(scriptBytes[4]))
-		return true
+		sigSize := len(scriptBytes[0]) == 64 
+		pubKeySize := len(scriptBytes[1]) == 64
+		opDup := engine.scripts[0][2].opcode.value == OP_DUP
+		opHash160 := engine.scripts[0][3].opcode.value == OP_HASH160
+		pubKeyHashSize := len(scriptBytes[4]) == 20
+		opEqualVerify := engine.scripts[0][5].opcode.value == OP_EQUALVERIFY
+		opCheckSig := engine.scripts[0][6].opcode.value == OP_CHECKSIG
+		
+		if sigSize && pubKeySize && pubKeyHashSize && opDup && opHash160 && opEqualVerify && opCheckSig {
+			return true
+		}
 	}
 	return false
 }
