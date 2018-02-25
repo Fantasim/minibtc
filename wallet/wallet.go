@@ -25,7 +25,7 @@ type Wallet struct {
 	PublicKey  []byte
 }
 
-func init(){
+func InitPKG(){
 	NODE_ID = os.Getenv("NODE_ID")
 	if NODE_ID == "" {
 		fmt.Printf("Vous devez créer une variable d'environnement correspondant à l'ID de votre noeud.\nExemple : `export NODE_ID=10000`\n\n")
