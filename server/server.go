@@ -32,8 +32,8 @@ func NewServer(log bool) *Server {
 		version: conf.NodeVersion,
 		ipStatus: GetLocalNetAddr(),
 		peers: make(map[string]*serverPeer),
-		blockmanager: NewBlockManager(),
-		chain: b.BC,
+		blockmanager: NewBlockManager(log),
+		chain: &*b.BC,
 	}
 	return s
 }
@@ -86,7 +86,6 @@ func (s *Server) StartServer(minerAddress string) {
 		log.Panic(err)
 	}
 	defer ln.Close()
-
 	fmt.Println("Running on", s.ipStatus.String())
 	fmt.Println("Current chain height:", b.BC.Height)
 	fmt.Println("Main node:", s.ipStatus.IsEqual(GetMainNode()) == true, "\n")

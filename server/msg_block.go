@@ -33,8 +33,9 @@ func (s *Server) handleBlock(request []byte) {
 	if err := getPayload(request, &payload); err != nil {
 		log.Panic(err)
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	addr := payload.AddrSender.String()
-
 	block := twayutil.DeserializeBlock(payload.Data)
 	if block != nil {
 		s.Log(true, "block "+ hex.EncodeToString(block.GetHash()) +" received from :", addr)

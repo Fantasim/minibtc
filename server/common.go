@@ -49,6 +49,7 @@ func gobEncode(data interface{}) []byte {
 	return buff.Bytes()
 }
 
+//Cette fonction recupere le contenu d'une requete envoyé par un noeud selon la requete
 func getPayload(request []byte, payload interface{}) error {
 	var buff bytes.Buffer
 	//ecrit dans le buffeur le payload de la request de commandLength bit jusqu'à la fin
@@ -62,6 +63,7 @@ func getPayload(request []byte, payload interface{}) error {
 	return nil
 }
 
+//Cette fonction recupere l'adresse locale du noeud
 func GetLocalNetAddr() *NetAddress {
 	ip, err := util.GetIP()
 	if err != nil {
@@ -72,6 +74,7 @@ func GetLocalNetAddr() *NetAddress {
 	return addrMe
 }
 
+//Cette fonction recupère l'adresse du noeud principale
 func GetMainNode() *NetAddress {
 	return NewNetAddressIPPort(conf.MainNodeIP, conf.MainNodePort)
 }

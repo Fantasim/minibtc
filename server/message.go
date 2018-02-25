@@ -17,32 +17,27 @@ func (s *Server) HandleConnexion(conn net.Conn) {
 	}
 	command := bytesToCommand(request[:conf.CommandLength])
 	switch command {
-	case "addr":
+	case "addr": //reception d'une liste d'adresse
 		s.handleAddr(request)
-	/*case "block":
-		handleBlock(request)
-	*/
-	case "block":
+	case "block": //reception d'un block
 		s.handleBlock(request)
-	case "inv":
+	case "inv": //reception d'une liste de hash (block ou transaction)
 		s.handleInv(request)
-	case "getaddr":
+	case "getaddr": //reception d'une demande de partage d'addresse
 		s.handleAskAddr(request)
-	case "getblocks":
+	case "getblocks": //reception d'une demande d'envoie de list de hash de block selon un intervalle de height donné
 		s.handleAskBlocks(request)
-	case "getdata":
+	case "getdata": //reception d'une demande d'envoie de data grace au hash (tx ou block)
 		s.handleGetData(request)
-	case "ping":
+	case "ping": //reception d'un ping
 		s.handlePing(request)
-	case "pong":
+	case "pong": //reception d'une reponse à un ping
 		s.handlePong(request)
-/*	case "getdata":
-		handleGetData(request, bc)
-	case "tx":
+/*	case "tx":
 		handleTx(request, bc)*/
-	case "verack":
+	case "verack": //reception d'une confirmation de reception de version
 		s.handleVerack(request)
-	case "version":
+	case "version": //reception d'une version d'un noeud
 		s.handleVersion(request)
 	default:
 		fmt.Println("Unknown command!")
