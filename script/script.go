@@ -10,9 +10,6 @@ var Script = new(script)
 
 type script struct {}
 
-func init(){
-}
-
 //Generation d'un script de type PayToPubKeyHash (ScriptPubKey)
 //OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
 func (s *script) LockingScript(pubKeyHash []byte) [][]byte {
