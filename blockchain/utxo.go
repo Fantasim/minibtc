@@ -66,7 +66,8 @@ func (utxo *UTXOSet) GetUnspentOutputsByPubKeyHash(pubKeyHash []byte, amount int
 func (utxo *UTXOSet) Reindex() error {
 	bucketName := []byte(UTXO_BUCKET)
 	db := BC.DB
-
+	UTXO := BC.FindUTXO()
+	
 	err := db.Update(func (tx *bolt.Tx) error {
 		err := tx.DeleteBucket(bucketName)
 		if err != nil && err != bolt.ErrBucketNotFound {
@@ -76,13 +77,6 @@ func (utxo *UTXOSet) Reindex() error {
 		if err != nil {
 			return err
 		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	UTXO := BC.FindUTXO()
-	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketName)
 		for txID, outs := range UTXO {
 			key, _ := hex.DecodeString(txID) 

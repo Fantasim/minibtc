@@ -40,14 +40,12 @@ func RemoveBlockchainDB() error {
 	return os.Remove(conf.DB_FILE)
 }
 
-
 //Créer une nouvelle blockchain avec le block genese contenant une tx coinbase
 func CreateBlockchainDB(genesis *twayutil.Block) error {
 	db, err := bolt.Open(conf.DB_FILE, 0600, nil)
 	if err != nil {
 		return err
 	}
-
 	var tip []byte
 
 	err = db.Update(func(tx *bolt.Tx) error {

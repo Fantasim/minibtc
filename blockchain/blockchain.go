@@ -27,7 +27,7 @@ type Blockchain struct {
 	Height int
 }
 
-func init(){
+func InitPKG(){
 	if dbExists() == true {
 		//charge le fichier db
 		loadDB()
@@ -92,7 +92,10 @@ func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 	})
 	if err == nil {
 		BC.Height += 1
-		UTXO.Reindex()
+		errr := UTXO.Reindex()
+		if errr != nil {
+			fmt.Println("Reindex error.")
+		}
 	}
 	return err
 }
