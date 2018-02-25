@@ -24,7 +24,7 @@ const (
 	VERSION = byte(0x00)
 )
 
-func init(){
+func InitPKG(){
 	NODE_ID = os.Getenv("NODE_ID")
 	//Si la variable d'environnement NODE_ID est bien set
 	if NODE_ID == "" {
