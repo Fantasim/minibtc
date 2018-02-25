@@ -15,6 +15,7 @@ func (s *Server) NewPing(addrTo *NetAddress) *MsgPing {
 	return &MsgPing{s.ipStatus, addrTo}
 }
 
+//Envoie une requete ping
 func (s *Server) sendPing(addrTo *NetAddress) ([]byte, error) {
 	addr := addrTo.String()
 
@@ -28,7 +29,7 @@ func (s *Server) sendPing(addrTo *NetAddress) ([]byte, error) {
 	return request, err
 }
 
-//Recupère la version d'un noeud
+//Receptionne une requete ping
 func (s *Server) handlePing(request []byte) {
 	var payload MsgPing
 	if err := getPayload(request, &payload); err != nil {

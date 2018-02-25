@@ -19,6 +19,7 @@ func (s *Server) NewMsgBlock(addrTo *NetAddress, data []byte) *MsgBlock {
 	return &MsgBlock{s.ipStatus, addrTo, data}
 }
 
+//Envoie un block 
 func (s *Server) sendBlock(addrTo *NetAddress, block *twayutil.Block) ([]byte, error) {
 	s.Log(true, "block "+ hex.EncodeToString(block.GetHash()) +" sent to:", addrTo.String())
 	//assigne en []byte la structure getblocks
@@ -28,13 +29,15 @@ func (s *Server) sendBlock(addrTo *NetAddress, block *twayutil.Block) ([]byte, e
 	return request, s.sendData(addrTo.String(), request)
 }
 
+//Récéptionne un block
 func (s *Server) handleBlock(request []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	var payload MsgBlock
 	if err := getPayload(request, &payload); err != nil {
 		log.Panic(err)
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	addr := payload.AddrSender.String()
 	block := twayutil.DeserializeBlock(payload.Data)
 	if block != nil {
@@ -42,5 +45,6 @@ func (s *Server) handleBlock(request []byte) {
 	} else {
 		s.Log(true, "wrong block received from :", addr)		
 	}
+	//Traite le block
 	s.blockmanager.BlockDownloaded(block)
 }

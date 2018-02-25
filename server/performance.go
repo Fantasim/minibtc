@@ -4,7 +4,8 @@ import (
 	"time"
 )
 
-//return average time client do to download one block
+//Cette fonction retourne le temps moyen que le noeud courant met pour télécharger
+//un block
 func GetAverageTimeToDownloadABlock(dis map[string]*DownloadInformations) int64 {
 	oneHourAgo := time.Now().Add(-1 * time.Hour)
 

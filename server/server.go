@@ -23,9 +23,11 @@ type Server struct {
 
 	blockmanager			*blockManager
 	mu					 	sync.Mutex
+	addrMu 					sync.Mutex
 	peers             		map[string]*serverPeer 
 }
 
+//Nouvelle structure Server
 func NewServer(log bool) *Server {
 	s := &Server{
 		log: log,
@@ -52,6 +54,7 @@ func (s *Server) Log(printTime bool, c... interface{}){
 	}
 }
 
+//Ajoute un nouveau pair
 func (s *Server) AddPeer(sp *serverPeer){
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -60,12 +63,14 @@ func (s *Server) AddPeer(sp *serverPeer){
 	}
 }
 
+//supprime un pair par son adresse
 func (s *Server) RemovePeer(sp *serverPeer){
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.peers, sp.GetAddr())
 }
 
+//Envoie une data par requete TCP
 func (s *Server) sendData(addr string, data []byte) error {
 	conn, err := net.Dial(conf.Protocol, addr)
 	if err != nil {

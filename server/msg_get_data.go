@@ -10,8 +10,8 @@ type MsgGetData struct {
 	// Address of the local peer.
 	AddrReceiver *NetAddress
 
-	ID 			[]byte
-	Kind 		string
+	ID 			[]byte //hash du block ou de la tx
+	Kind 		string //"block" ou "tx"
 }
 
 func (s *Server) NewMsgGetData(addrTo *NetAddress, ID []byte, kind string) *MsgGetData {
@@ -27,6 +27,7 @@ func (s *Server) sendGetData(addrTo *NetAddress, ID []byte, kind string) ([]byte
 	return request, s.sendData(addrTo.String(), request)
 }
 
+//Receptionne une demande de block ou de transaction 
 func (s *Server) handleGetData(request []byte) {
 	var payload MsgGetData
 	if err := getPayload(request, &payload); err != nil {
@@ -37,8 +38,12 @@ func (s *Server) handleGetData(request []byte) {
 
 	if payload.Kind == "block" {
 		//block
+		//on recupère le block si il existe
 		block, _ := s.chain.GetBlockByHash(payload.ID)
-		s.sendBlock(payload.AddrSender, block)
+		if block != nil {
+			//envoie le block au noeud créateur de la requete
+			s.sendBlock(payload.AddrSender, block)
+		}
 	} else {
 		//tx
 	}

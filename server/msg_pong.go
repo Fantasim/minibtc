@@ -15,6 +15,7 @@ func (s *Server) NewPong(addrTo *NetAddress) *MsgPong {
 	return &MsgPong{s.ipStatus, addrTo}
 }
 
+//envoie une requete pong (reponse à un ping)
 func (s *Server) sendPong(addrTo *NetAddress) ([]byte, error) {
 	addr := addrTo.String()
 
@@ -24,7 +25,7 @@ func (s *Server) sendPong(addrTo *NetAddress) ([]byte, error) {
 	return request, s.sendData(addrTo.String(), request)
 }
 
-//Recupère la version d'un noeud
+//Receptionne une requete pong (reponse d'un ping)
 func (s *Server) handlePong(request []byte) {
 	var payload MsgPong
 	if err := getPayload(request, &payload); err != nil {

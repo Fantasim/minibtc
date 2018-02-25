@@ -3,6 +3,7 @@ package server
 import (
 	"log"
 	"time"
+	conf "tway/config"
 )
 
 type MsgVerack struct {
@@ -16,6 +17,7 @@ func (s *Server) NewVerack(addrTo *NetAddress) *MsgVerack {
 	return &MsgVerack{s.ipStatus, addrTo}
 }
 
+//Envoie une requete verack
 func (s *Server) sendVerack(addrTo *NetAddress) ([]byte, error) {
 	s.Log(true, "VerAck sent to:", addrTo.String())
 	payload := gobEncode(*s.NewVerack(addrTo))
@@ -23,7 +25,8 @@ func (s *Server) sendVerack(addrTo *NetAddress) ([]byte, error) {
 	return request, s.sendData(addrTo.String(), request)
 }
 
-//Recupère la version d'un noeud
+//Receptionne une requete verack
+//confirmation de bonne reception d'une requete version 
 func (s *Server) handleVerack(request []byte) {
 	var payload MsgVerack
 	if err := getPayload(request, &payload); err != nil {
@@ -35,7 +38,9 @@ func (s *Server) handleVerack(request []byte) {
 	p := s.peers[addr]
 	p.VerAckReceived()
 	s.peers[addr] = p
-	if p.IsVerAckReceived() && p.IsVersionSent() && time.Now().Add(time.Minute * -30).After(time.Unix(0, p.GetLastAddrGetTime())) {
+	//si les echanges de version ont été realisé et que la derniere demande d'address avec ce noeud date de plus de conf.TimeInMinuteBetween2AskAddrWithASameNode
+	if p.IsVerAckReceived() && p.IsVersionSent() && time.Now().Add(time.Minute * conf.TimeInMinuteBetween2AskAddrWithASameNode * -1).After(time.Unix(0, p.GetLastAddrGetTime())) {
+		//on demande une liste d'addresse
 		s.sendAskAddr(payload.AddrSender)
 	}
 }

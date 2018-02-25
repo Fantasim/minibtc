@@ -10,7 +10,7 @@ type MsgInv struct {
 	AddrSender *NetAddress
 	// Address of the local peer.
 	AddrReceiver *NetAddress
-	Kind string // "transaction" || "block"
+	Kind string // "tx" || "block"
 	List [][]byte
 }
 
@@ -18,15 +18,18 @@ type MsgInv struct {
 func (s *Server) rangeTxList(data [][]byte){
 }
 
+//parcours une liste hash de block suite a une requete handleInv
 func (s *Server) rangeBlockList(addrTo *NetAddress, data [][]byte, toSP *serverPeer){
 	for _, item := range data {
-		if b, _ := s.chain.GetBlockByHash(item); b == nil {
-
+		//on recupère le block correspondant au hash, si il existe
+		if b, _ := s.chain.GetBlockByHash(item); b != nil {
 			hashBlock := hex.EncodeToString(item)
-
+			//si le block n'est pas ajouté dans la liste des blocks a téléchargé du block manager
 			if s.blockmanager.download[hashBlock] == nil {
+				//on demande le block au noeud qui a envoyé la liste de blocks
 				_, err := s.sendGetData(addrTo, item, "block")
 				if err == nil {
+					//on indique au block manager que l'on commence a télécharger le block
 					s.blockmanager.StartDownloadBlock(hashBlock, toSP)
 				}
 			}
@@ -38,6 +41,7 @@ func (s *Server) NewMsgInv(addrTo *NetAddress, kind string, list [][]byte) *MsgI
 	return &MsgInv{s.ipStatus, addrTo, kind, list}
 }
 
+//Envoie une liste de hash de data (block || tx) 
 func (s *Server) sendInv(addrTo *NetAddress, kind string, list [][]byte) ([]byte, error) {
 	s.Log(true, "Inv kind:"+kind+ " sent to:", addrTo.String())
 	//assigne en []byte la structure getblocks
@@ -47,6 +51,7 @@ func (s *Server) sendInv(addrTo *NetAddress, kind string, list [][]byte) ([]byte
 	return request, s.sendData(addrTo.String(), request)
 }
 
+//Receptionne une liste de hash de data (block || tx)
 func (s *Server) handleInv(request []byte){
 	var payload MsgInv
 	if err := getPayload(request, &payload); err != nil {
