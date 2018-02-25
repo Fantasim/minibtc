@@ -11,29 +11,33 @@ import (
 	"errors"
 )
 
+//Check la validité des transactions d'un block
 func (b *Blockchain) CheckBlockTXs(block *twayutil.Block) error {
 	txs := block.Transactions
 
+	//verifie la transaction coinbase
 	err := b.CheckBlockTxCoinbase(block)
 	if err != nil {
 		return err
 	}
-
 	var txsWithoutCoinbase []twayutil.Transaction
+	//si le block ne contient qu'une transaction coinbase
 	if block.Counter == 1 {
 		txsWithoutCoinbase = []twayutil.Transaction{}
 	} else {
-		//remove coinbase tx from block txs
+		//on recopie la liste de transaction sans la coinbase
 		txsWithoutCoinbase = append(block.Transactions[:0], block.Transactions[1:]...)
 	}
 
+	//on recupere le total des inputs, des ouputs et les frais 
+	//de transaction cumulés de la totalités des transactions 
 	total_inputs, total_outputs, fees := GetTotalAmounts(txsWithoutCoinbase)
-	//if total amount selected with input is not equals 
-	//to total amount added in outputs with fees
+	//si le total des inputs n'est pas egal au total des outputs et des frais de transaction
 	if total_inputs != (total_outputs + fees) {
 		return errors.New(WRONG_BLOCK_PUTS_VALUE)
 	}
 
+	//on verifie individuellement la validitié de chacun des txs du block
 	for _, tx := range txs {
 		err := CheckIfTxIsCorrect(&tx)
 		if err != nil {
@@ -43,15 +47,20 @@ func (b *Blockchain) CheckBlockTXs(block *twayutil.Block) error {
 	return nil
 }
 
+//Verifie la validité de la transaction coinbase d'un block
 func (b *Blockchain) CheckBlockTxCoinbase(block *twayutil.Block) error {
 	if len(block.Transactions) == 0 {
 		return errors.New("any coinbase transaction in this block")
 	}
 	coinbaseTx := block.Transactions[0]
-	
+
 	if coinbaseTx.IsCoinbase() == true {
+		//on recupere la totalité des outputs de la tx coinbase
 		_, total_coinbase_outputs, _ := GetAmounts(&coinbaseTx)
+		//on recupère la totalité des frais de transaction cumulé du block
 		_, _, fees := GetTotalAmounts(block.Transactions)
+		//si la totalité des outputs de la tx coinbase  correspond a la recompense
+		//definis par le systeme + les frais de transaction du block
 		if (total_coinbase_outputs - fees) == conf.REWARD {
 			return nil
 		}
@@ -60,7 +69,7 @@ func (b *Blockchain) CheckBlockTxCoinbase(block *twayutil.Block) error {
 	return errors.New("coinbase transaction is not at index 0 of transactions list")
 }
 
-
+//Recupere la hauteur d'un block dans la chain
 func (b *Blockchain) GetBlockHeight(blockHash []byte) int {
 	be := NewExplorer()
 	var i = 0
@@ -77,6 +86,7 @@ func (b *Blockchain) GetBlockHeight(blockHash []byte) int {
 	return i
 }
 
+//Recupere un block par son hash
 func (b *Blockchain) GetBlockByHash(hash []byte) (*twayutil.Block, int) {
 	var block *twayutil.Block
 	
@@ -97,6 +107,7 @@ func (b *Blockchain) GetBlockByHash(hash []byte) (*twayutil.Block, int) {
 	return block, b.GetBlockHeight(block.GetHash())
 }
 
+//Recupere le dernier block de la chain
 func (b *Blockchain) GetLastBlock() *twayutil.Block {
 	block, _ := b.GetBlockByHash(b.Tip)
 	return block

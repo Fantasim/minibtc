@@ -16,26 +16,35 @@ func CheckIfTxIsCorrect(tx *twayutil.Transaction) error {
 		return nil
 	}
 
+	//on recupere la liste des transactions ayant permis
+	// la creation des inputs de la tx recu
 	prevTXs := GetPrevTxs(tx)
+	//pour chaque inputs
 	for idx, in := range tx.Inputs {
 		prevHash := hex.EncodeToString(in.PrevTransactionHash)
 		vout := util.DecodeInt(in.Vout)
+		//on recupère le script pubkey de la tx precente lié a cet input
 		scriptPubKey := prevTXs[prevHash].Outputs[vout].ScriptPubKey
 		scriptSig := in.ScriptSig
-
+		
+		//ScriptSig + ScriptPubKey 
 		scriptToRun := append(scriptSig, scriptPubKey...) 
+		//si le script n'est pas de type PubKeyHash 
 		if s.Script.IsPayToPubKeyHash(scriptToRun) == false {
 			return errors.New(WRONG_SCRIPT)
 		}
+		//pour des raisons de fonctionnalités avec pkg on convertit le type twayutil.Transaction en type util.Transaction
 		prevTXsUtil := make(map[string]*util.Transaction)
 		for hash, tx := range prevTXs {
 			prevTXsUtil[hash] = tx.ToTxUtil()
 		}
 		engine := s.NewEngine(prevTXsUtil, tx.ToTxUtil(), idx)
+		//on execute le script
 		err := engine.Run(scriptToRun)
 		if err != nil {
 			return err
 		}
+		//si la stack du script apres son execution n'est pas egale a true
 		if engine.IsScriptSucceed() == false {
 			return errors.New(WRONG_SCRIPT)
 		}
