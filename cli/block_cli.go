@@ -16,6 +16,7 @@ func BlockPrintUsage(){
 	fmt.Println(" Options:")
 	fmt.Println(" --hash \t block's hash")
 	fmt.Println(" --new \t Create and add new blockchain onto the blockchain")
+	fmt.Println(" --last \t print last block")
 }
 
 
@@ -78,6 +79,7 @@ func BlockPrintCli(){
 	blockCMD := flag.NewFlagSet("block", flag.ExitOnError)
 	hash := blockCMD.String("hash", "", "Print block if exist")
 	new := blockCMD.Bool("new", false, "Create and mine new block")
+	last := blockCMD.Bool("last", false, "print last block")
 	handleParsingError(blockCMD)
 
 	if *hash != "" {
@@ -89,6 +91,9 @@ func BlockPrintCli(){
 	} else if *new == true {
 		var empty []twayutil.Transaction
 		NewBlock(empty, 0)
+	} else if *last == true {
+		block := b.BC.GetLastBlock()
+		printBlockInChain(block, b.BC.Height)
 	} else {
 		BlockPrintUsage()
 	}
