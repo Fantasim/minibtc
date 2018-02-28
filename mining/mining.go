@@ -12,7 +12,6 @@ import (
 	"bytes"
 )
 
-
 var mempool []twayutil.Transaction
 const maxNonce = math.MaxInt64
 
@@ -20,11 +19,13 @@ type MiningManager struct {
 	NewBlock 	chan *twayutil.Block
 	is_mining 	bool
 	start		time.Time
+	tip			[]byte
 }
 
-func NewMiningManager() *MiningManager {
+func NewMiningManager(tip []byte) *MiningManager {
 	return &MiningManager{
 		NewBlock: make(chan *twayutil.Block),
+		tip: tip,
 	}
 }
 
@@ -32,16 +33,21 @@ func (mm *MiningManager) IsMining() bool {
 	return mm.is_mining
 }
 
+func (mm *MiningManager) UpdateTip(newTip []byte){
+	mm.tip = newTip
+}
+
 func (mm *MiningManager) run(pow *b.Pow, newBlock chan *twayutil.Block){
 	var hashInt big.Int
 	var hash []byte
 	nonce := 0
-
 	var stopMining = false
 
 	go func(){
 		mm.is_mining = true 
 		for nonce < maxNonce {
+			if nonce % 100000 == 0 {
+			}
 			data := pow.PrepareData(util.EncodeInt(nonce))
 			hash = util.Sha256(data)
 			hashInt.SetBytes(hash[:])
@@ -54,11 +60,13 @@ func (mm *MiningManager) run(pow *b.Pow, newBlock chan *twayutil.Block){
 					//le serveur traitera le block via le block manager
 					//et informera le mining manager qu'un nouveau block a été ajouté à la chain
 					mm.NewBlock <- pow.Block
+					i := 0;
 					for {
-						if bytes.Compare(b.BC.Tip, pow.Block.GetHash()) == 0 {
+						if bytes.Compare(mm.tip, pow.Block.Header.HashPrevBlock) == 0 {
 							break;
 						}
-						time.Sleep(time.Millisecond * 1)
+						time.Sleep(time.Microsecond * 10000)
+						i++
 					}
 					//signal que le minage de ce block est terminé.
 					//pour passer au block suivant
@@ -76,18 +84,19 @@ func (mm *MiningManager) run(pow *b.Pow, newBlock chan *twayutil.Block){
 		new := <-newBlock
 		if bytes.Compare(pow.Block.Header.HashPrevBlock, new.Header.HashPrevBlock) == 0 {
 			stopMining = true
+			mm.tip = new.GetHash()
 			return
 		}
 	}
 }
 
-func (mm *MiningManager) StartMining(newBlock chan *twayutil.Block){
+func (mm *MiningManager) StartMining(newBlock chan *twayutil.Block, tip []byte){
 	mm.start = time.Now()
-	fmt.Println("[MINING] START")	
+	fmt.Println("[MINING] START")
 	for {
 		txs := mempool
 		_, _, fees := b.GetTotalAmounts(txs)
-		block := twayutil.NewBlock(txs, b.BC.Tip, wallet.RandomWallet().PublicKey, fees)
+		block := twayutil.NewBlock(txs, mm.tip, wallet.RandomWallet().PublicKey, fees)
 		//Créer une target de proof of work
 		pow := b.NewProofOfWork(block)
 		mm.run(pow, newBlock)
