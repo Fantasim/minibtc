@@ -4,19 +4,17 @@ import (
 	"tway/server"
 	"flag"
 	"tway/wallet"
-	"fmt"
 )
 
 func serverCli(){
 	serverCMD := flag.NewFlagSet("server", flag.ExitOnError)
-	minerAddress := serverCMD.String("miner", "", "Address to send reward of each block mined")
+	mining := serverCMD.Bool("mining", false, "enable mining")
 	log := serverCMD.Bool("log", false, "Print logs")
 	handleParsingError(serverCMD)
-	if *minerAddress != "" && wallet.IsAddressValid(*minerAddress) == false {
-		fmt.Println("Miner address is not correct")
-		return
+	if *mining == true && wallet.IsAWalletExist() == false {
+		wallet.GenerateWallet()
 	}
-	s := server.NewServer(*log)
-	s.StartServer(*minerAddress)
+	s := server.NewServer(*log, *mining)
+	s.StartServer()
 }
 
