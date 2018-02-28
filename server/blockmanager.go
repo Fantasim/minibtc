@@ -20,15 +20,16 @@ type DownloadInformations struct {
 }
 
 type blockManager struct {
+	NewBlock 		chan *twayutil.Block
 	download		map[string]*DownloadInformations
 	mu 				sync.Mutex
 	chain			*b.Blockchain
 	log				bool
 }
 
-//
-func NewBlockManager(log bool) *blockManager {
+func NewBlockManager(log, mining bool) *blockManager {
 	return &blockManager{
+		NewBlock: make(chan *twayutil.Block),
 		download: make(map[string]*DownloadInformations),
 		chain: *&b.BC,
 		log: log,
@@ -49,7 +50,7 @@ func (bm *blockManager) IsDownloading(hash string) bool {
 //Elle permet de receptionner un block téléchargé et de controler chaque partie du block
 //permettant ainsi de le rejeter ou de l'ajouter a la blockchain locale.
 //elle met egalement a jour le blockmanager en fonction du resultat
-func (bm *blockManager) BlockDownloaded(new *twayutil.Block){
+func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server){
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 
@@ -93,13 +94,19 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block){
 		go func(){
 			//on sleep dans une goroutine en attendant le nouvel essai
 			time.Sleep(time.Nanosecond * time.Duration(averageTimeToDownloadBlock))
-			bm.BlockDownloaded(new)
+			bm.BlockDownloaded(new, s)
 		}()
 		return
 	}
 	//on ajoute le block à la chain
 	err = bm.chain.AddBlock(new)
 	if err == nil {
+		//Si le noeud est en cours de minage
+		if s.MiningManager.IsMining() == true  {
+			s.newBlock <- new
+		} else if s.mining == true {
+			s.Mining()
+		}
 		bm.Log(true, fmt.Sprintf("block %d - %s successfully added on chain\n", bm.chain.Height, hash))
 		bm.download[hash].block = new
 		bm.download[hash].receivedAt = time.Now().UnixNano()

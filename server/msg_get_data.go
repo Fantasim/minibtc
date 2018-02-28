@@ -35,7 +35,7 @@ func (s *Server) handleGetData(request []byte) {
 	}
 	addr := payload.AddrSender.String()
 	s.Log(true, "GetData kind:"+payload.Kind+ " received from :", addr)
-
+	
 	if payload.Kind == "block" {
 		//block
 		//on recupère le block si il existe

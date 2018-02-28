@@ -8,6 +8,7 @@ import (
 	"log"
 	"tway/util"
 	"strconv"
+	"time"
 )
 
 func commandToBytes(command string) []byte {
@@ -77,4 +78,10 @@ func GetLocalNetAddr() *NetAddress {
 //Cette fonction recupère l'adresse du noeud principale
 func GetMainNode() *NetAddress {
 	return NewNetAddressIPPort(conf.MainNodeIP, conf.MainNodePort)
+}
+
+func (s *Server) LocalWaiting(){
+	if s.prod == false {
+		time.Sleep(time.Millisecond * 5)
+	}
 }

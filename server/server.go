@@ -4,8 +4,10 @@ import (
 	"net"
 	conf "tway/config"
 	b "tway/blockchain"
+	mine "tway/mining"
 	"log"
 	"fmt"
+	"tway/twayutil"
 	"sync"
 	"io"
 	"bytes"
@@ -16,26 +18,32 @@ type Server struct {
 	version 				int32
 
 	log						bool
+	mining 					bool
+	prod					bool
 	//ip of user who run server
 	ipStatus				*NetAddress
 	chain			 		*b.Blockchain
 
-
-	blockmanager			*blockManager
+	MiningManager			*mine.MiningManager
+	BlockManager			*blockManager
+	newBlock				chan *twayutil.Block
 	mu					 	sync.Mutex
 	addrMu 					sync.Mutex
-	peers             		map[string]*serverPeer 
+	peers             		map[string]*serverPeer
 }
 
 //Nouvelle structure Server
-func NewServer(log bool) *Server {
+func NewServer(log bool, mining bool) *Server {
 	s := &Server{
 		log: log,
 		version: conf.NodeVersion,
 		ipStatus: GetLocalNetAddr(),
 		peers: make(map[string]*serverPeer),
-		blockmanager: NewBlockManager(log),
+		MiningManager: mine.NewMiningManager(),
+		BlockManager: NewBlockManager(log, mining),
 		chain: &*b.BC,
+		mining: mining,
+		newBlock: make(chan *twayutil.Block),
 	}
 	return s
 }
@@ -85,7 +93,7 @@ func (s *Server) sendData(addr string, data []byte) error {
 }
 
 //Demarrer le serveur du node
-func (s *Server) StartServer(minerAddress string) {
+func (s *Server) StartServer() {
 	ln, err := net.Listen(conf.Protocol, s.ipStatus.String())
 	if err != nil {
 		log.Panic(err)
@@ -95,6 +103,9 @@ func (s *Server) StartServer(minerAddress string) {
 	fmt.Println("Current chain height:", b.BC.Height)
 	fmt.Println("Main node:", s.ipStatus.IsEqual(GetMainNode()) == true, "\n")
 	
+	if s.mining == true {
+		go s.HandleNewBlockMined()
+	}
 
 	//si l'adresse du noeud n'est pas un node connu
 	if s.ipStatus.IsEqual(GetMainNode()) == false  {

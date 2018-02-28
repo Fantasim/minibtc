@@ -39,6 +39,6 @@ func (s *Server) handleAskBlocks(request []byte){
 	s.Log(false, len(listBlock), "blocks found")
 	
 	//recupère une liste de hash depuis une list de block
-	listHash := twayutil.GetListBlocksHash(listBlock)
+	listHash := twayutil.GetListBlocksHashFromMap(listBlock)
 	s.sendInv(payload.Addr, "block", listHash)
 }

@@ -45,6 +45,5 @@ func (s *Server) handleBlock(request []byte) {
 	} else {
 		s.Log(true, "wrong block received from :", addr)		
 	}
-	//Traite le block
-	s.blockmanager.BlockDownloaded(block)
+	s.BlockManager.BlockDownloaded(block, s)
 }

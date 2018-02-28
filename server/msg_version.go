@@ -61,6 +61,10 @@ func (s *Server) handleVersion(request []byte) {
 		//lui demander des blocks
 	}
 
+	if s.mining == true && payload.AddrSender.IsEqual(GetMainNode()) && blockchain.BC.Height >= payload.LastBlock && s.MiningManager.IsMining() == false {
+		s.Mining()
+	}
+
 	//établie les informations concernant le pair
 	//envoie un verack et sa version si non fait.
 	go func(){

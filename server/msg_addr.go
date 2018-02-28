@@ -16,7 +16,6 @@ type MsgAddr struct {
 //Récupère la liste des adresses de confiance avec qui le noeud courant est ou a été contact
 func (s *Server) GetAddrList() [][]byte{
 	var ret [][]byte
-
 	for _, peer := range s.peers {
 		ret = append(ret, []byte(peer.GetAddr()))
 	}

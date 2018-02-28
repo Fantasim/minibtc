@@ -33,6 +33,29 @@ func (s *Server) ListOfTrustedPeers() map[string]*serverPeer {
 	return ret
 }
 
+func (s *Server) GetCloserAndSafestPeers() map[string]*serverPeer {
+	ret := make(map[string]*serverPeer)
+
+	for addr, p := range s.peers {
+		if p.IsVersionSent() == true && p.IsVerAckReceived() == true {
+			ret[addr] = p
+		}
+	}
+	return ret
+}
+
+func (s *Server) GetListOfTrustedMainNode() map[string]*serverPeer{
+	ret := make(map[string]*serverPeer)
+	for addr, p := range s.peers {
+		na := NewNetAddressIPPort(util.StringToNetIpAndPort(addr))
+		na.IsEqual(GetMainNode())
+		if na.IsEqual(GetMainNode()) == true && p.IsVersionSent() == true && p.IsVerAckReceived() == true {
+			ret[addr] = p
+		}
+	}
+	return ret
+}
+
 //Cette fonction est appelé dès lors que le noeud recoit une liste de nouvelles addresses
 //Pour chaque adresse recu, elle va lui envoyer un ping puis attendre un certain délais 
 //pour la reception d'un pong provenant de ce même noeud.

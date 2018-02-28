@@ -16,6 +16,7 @@ func (s *Server) HandleConnexion(conn net.Conn) {
 		log.Panic(err)
 	}
 	command := bytesToCommand(request[:conf.CommandLength])
+	s.LocalWaiting()
 	switch command {
 	case "addr": //reception d'une liste d'adresse
 		s.handleAddr(request)
