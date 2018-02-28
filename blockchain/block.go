@@ -26,7 +26,9 @@ func (b *Blockchain) CheckBlockTXs(block *twayutil.Block) error {
 		txsWithoutCoinbase = []twayutil.Transaction{}
 	} else {
 		//on recopie la liste de transaction sans la coinbase
-		txsWithoutCoinbase = append(block.Transactions[:0], block.Transactions[1:]...)
+		tmp := make([]twayutil.Transaction, len(block.Transactions))
+		copy(tmp, block.Transactions)
+		txsWithoutCoinbase = append(tmp[:0], tmp[1:]...)
 	}
 
 	//on recupere le total des inputs, des ouputs et les frais 
@@ -175,6 +177,9 @@ func GetTotalAmounts(list []twayutil.Transaction) (int, int, int) {
 	return total_inputs, total_outputs, fees
 }
 
+//Recupère une liste de block dans un intervalle de hauteur donné
+//height == hauteur initiale de recuperation
+//max == height + nb de block a recupere
 func (b *Blockchain) GetNBlocksNextToHeight(height int, max int) map[string]*twayutil.Block {
 	var list = make(map[string]*twayutil.Block)
 	
@@ -191,6 +196,7 @@ func (b *Blockchain) GetNBlocksNextToHeight(height int, max int) map[string]*twa
 	return list
 }
 
+//Verifie le contenu d'un block
 func (b *Blockchain) CheckNewBlock(new *twayutil.Block) error {
 
 	//newBlockMerkleRoot := new.Header.HashMerkleRoot

@@ -14,8 +14,8 @@ var maxNonce = math.MaxInt64
 const targetBits = 23
 
 type Pow struct {
-	block  *twayutil.Block
-	target *big.Int
+	Block  *twayutil.Block
+	Target *big.Int
 }
 
 // NewProofOfWork builds and returns a ProofOfWork
@@ -28,13 +28,13 @@ func NewProofOfWork(b *twayutil.Block) *Pow {
 	return pow
 }
 
-func (pow *Pow) prepareData(nonce []byte) []byte {
+func (pow *Pow) PrepareData(nonce []byte) []byte {
 	data := bytes.Join(
 		[][]byte{
-			pow.block.Header.HashPrevBlock,
-			pow.block.Header.HashMerkleRoot,
-			pow.block.Header.Time,
-			pow.block.Header.Bits,
+			pow.Block.Header.HashPrevBlock,
+			pow.Block.Header.HashMerkleRoot,
+			pow.Block.Header.Time,
+			pow.Block.Header.Bits,
 			nonce,
 		},
 		[]byte{},
@@ -53,10 +53,10 @@ func (pow *Pow) Run() (int, []byte, error) {
 
 	fmt.Println("mining...")
 	for nonce < maxNonce {
-		data := pow.prepareData(util.EncodeInt(nonce))
+		data := pow.PrepareData(util.EncodeInt(nonce))
 		hash = util.Sha256(data)
 		hashInt.SetBytes(hash[:])
-		if hashInt.Cmp(pow.target) == -1 {
+		if hashInt.Cmp(pow.Target) == -1 {
 			break
 		}
 		nonce++
@@ -70,9 +70,9 @@ func (pow *Pow) Run() (int, []byte, error) {
 func (pow *Pow) Validate() bool {
 	var hashInt big.Int
 
-	data := pow.prepareData(pow.block.Header.Nonce)
+	data := pow.PrepareData(pow.Block.Header.Nonce)
 	hash := util.Sha256(data)
 	hashInt.SetBytes(hash[:])
 
-	return hashInt.Cmp(pow.target) == -1
+	return hashInt.Cmp(pow.Target) == -1
 }

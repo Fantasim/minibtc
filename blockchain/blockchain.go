@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"bytes"
 	"log"
+	"sync"
 )
 
 const (
@@ -25,6 +26,7 @@ type Blockchain struct {
 	Tip []byte
 	DB *bolt.DB
 	Height int
+	mu sync.Mutex
 }
 
 func InitPKG(){
@@ -54,6 +56,9 @@ func (b *Blockchain) getHeight() {
 
 //Ajoute un block à la blockchain
 func (b *Blockchain) AddBlock(block *twayutil.Block) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	
 	db := b.DB
 	if block == nil {
 		return errors.New("nil block")

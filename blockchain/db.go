@@ -30,7 +30,7 @@ func loadDB() error {
 	if err != nil {
 		return err
 	}
-	BC = &Blockchain{tip, db, 0}
+	BC = &Blockchain{Tip: tip, DB: db, Height: 0}
 	BC.getHeight()
 	return nil
 }
@@ -73,6 +73,6 @@ func CreateBlockchainDB(genesis *twayutil.Block) error {
 		return err
 	}
 	//set le tip et la DB dans la structure Blockchain
-	BC = &Blockchain{tip, db, 1}
+	BC = &Blockchain{Tip: tip, DB: db, Height: 1}
 	return nil
 }
