@@ -4,6 +4,7 @@ import (
 	"log"
 	"encoding/hex"
 	"tway/util"
+	"fmt"
 )
 
 type MsgInv struct {
@@ -22,6 +23,7 @@ func (s *Server) rangeTxList(data [][]byte){
 //parcours une liste hash de block suite a une requete handleInv
 func (s *Server) rangeBlockList(addrTo *NetAddress, data [][]byte, toSP *serverPeer){
 	for _, item := range data {
+		fmt.Println("block received:", hex.EncodeToString(item))
 		//on recupère le block correspondant au hash, si il existe
 		if b, _ := s.chain.GetBlockByHash(item); b == nil {
 			hashBlock := hex.EncodeToString(item)

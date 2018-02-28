@@ -39,7 +39,7 @@ func NewServer(log bool, mining bool) *Server {
 		version: conf.NodeVersion,
 		ipStatus: GetLocalNetAddr(),
 		peers: make(map[string]*serverPeer),
-		MiningManager: mine.NewMiningManager(),
+		MiningManager: mine.NewMiningManager(b.BC.Tip),
 		BlockManager: NewBlockManager(log, mining),
 		chain: &*b.BC,
 		mining: mining,

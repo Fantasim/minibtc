@@ -56,6 +56,7 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server){
 
 	//si le block est vide
 	if new == nil  {
+		bm.Log(false, "block is nil")
 		return 
 	}
 	//hash du block recu
@@ -63,6 +64,7 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server){
 
 	//si le block recu n'existe pas dans la liste des blocks en cours de téléchargement (si le block n'a pas été demandé)
 	if bm.download[hash] == nil {
+		bm.Log(false, "download information is not exist")
 		return
 	}
 
@@ -70,6 +72,7 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server){
 	//si il y a une erreur, on supprime le block du manager, le block est invalide
 	err := bm.chain.CheckNewBlock(new)
 	if err != nil {
+		bm.Log(false, "wrong new block informations")		
 		delete(bm.download, hash)
 		return
 	}
@@ -101,6 +104,8 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server){
 	//on ajoute le block à la chain
 	err = bm.chain.AddBlock(new)
 	if err == nil {
+		//met a jour le nouveau tip du mining manager
+		s.MiningManager.UpdateTip(new.GetHash())
 		//Si le noeud est en cours de minage
 		if s.MiningManager.IsMining() == true  {
 			s.newBlock <- new

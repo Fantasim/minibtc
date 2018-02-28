@@ -2,6 +2,9 @@ package server
 
 import (
 	"log"
+	"fmt"
+	"encoding/hex"
+	"time"
 )
 
 type MsgGetData struct {
@@ -43,6 +46,21 @@ func (s *Server) handleGetData(request []byte) {
 		if block != nil {
 			//envoie le block au noeud créateur de la requete
 			s.sendBlock(payload.AddrSender, block)
+		} else {
+			fmt.Println("block is nil :( handleGetData")
+			go func(){
+				time.Sleep(time.Second * 1)
+				block, _ := s.chain.GetBlockByHash(payload.ID)
+				if block == nil {
+					fmt.Println("AGAIN NIL")
+				} else {
+					fmt.Println("IT WORKS!!")
+				}
+			}()
+			fmt.Println(hex.EncodeToString(payload.ID))
+			b := s.chain.GetLastBlock()
+			fmt.Println(hex.EncodeToString(b.GetHash()))
+			fmt.Println(s.chain.Height)
 		}
 	} else {
 		//tx

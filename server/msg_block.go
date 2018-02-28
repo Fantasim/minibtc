@@ -45,5 +45,9 @@ func (s *Server) handleBlock(request []byte) {
 	} else {
 		s.Log(true, "wrong block received from :", addr)		
 	}
+
+	s.Log(false, "handleBlock: current tip:", hex.EncodeToString(s.chain.Tip))
+	s.Log(false, "handleBlock: block prev hash:", hex.EncodeToString(block.Header.HashPrevBlock))
+	s.Log(false, "handleBlock: block hash:", hex.EncodeToString(block.GetHash()))
 	s.BlockManager.BlockDownloaded(block, s)
 }
