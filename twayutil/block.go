@@ -62,7 +62,15 @@ func (bl *Block) Serialize() []byte {
 	return bu.Bytes()
 }
 
-func GetListBlocksHash(list map[string]*Block) [][]byte {
+func GetListBlocksHashFromSlice(list []*Block) [][]byte {
+	var ret [][]byte
+	for _, b := range list {
+		ret = append(ret, b.GetHash())
+	}
+	return ret
+}
+
+func GetListBlocksHashFromMap(list map[string]*Block) [][]byte {
 	var ret [][]byte
 	for _, b := range list {
 		ret = append(ret, b.GetHash())
