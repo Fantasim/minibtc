@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/ecdsa"
 	mathr "math/rand"
+	"os"
 )
 
 //Vérifie qu'une adresse est correcte (processus utilisé par le BTC)
@@ -51,7 +52,13 @@ func SignPrivateKey(addr string) ([]byte, error) {
 
 //Retourne un wallet aleatoire parmis les wallets locaux
 func RandomWallet() *Wallet {
-	random := mathr.Intn(len(WalletList) - 1)
+	var random int
+	if len(WalletList) == 1 {
+		random = 0
+	} else {
+		random = mathr.Intn(len(WalletList) - 1)
+	}
+	
 	var i = 0
 	for _, w := range WalletList {
 		if i == random {
@@ -60,4 +67,11 @@ func RandomWallet() *Wallet {
 		i++
 	}
 	return nil
+}
+
+func IsAWalletExist() bool {
+	if _, err := os.Stat(WALLET_FILE); os.IsNotExist(err) {
+		return false
+	}
+	return len(WalletList) > 0
 }
