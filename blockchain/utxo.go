@@ -4,7 +4,7 @@ import (
 	"github.com/boltdb/bolt"
 	"tway/twayutil"
 	"tway/util"
-	"encoding/hex"
+	//"encoding/hex"
 	"log"
 )
 
@@ -16,7 +16,8 @@ var (
 	UTXO *UTXOSet
 )
 
-type UTXOSet struct {}
+type UTXOSet struct {
+}
 
 //Structure représentant les informations liés à un UTXO
 type UnspentOutput struct {
@@ -64,6 +65,7 @@ func (utxo *UTXOSet) GetUnspentOutputsByPubKeyHash(pubKeyHash []byte, amount int
 
 //Reindex la liste des utxo dans le bucket des UTXOS
 func (utxo *UTXOSet) Reindex() error {
+	/* 
 	bucketName := []byte(UTXO_BUCKET)
 	db := BC.DB
 	UTXO := BC.FindUTXO()
@@ -88,6 +90,8 @@ func (utxo *UTXOSet) Reindex() error {
 		return nil
 	})
 	return err
+	*/
+	return nil
 }
 
 //Compte le nombre de transaction contenant des outputs non dépensés

@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"bytes"
-	"log"
 	"sync"
 )
 
@@ -90,7 +89,7 @@ func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 		}
 		err = b.Put([]byte("l"), blockHash)
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 		BC.Tip = blockHash
 		return nil
