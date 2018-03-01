@@ -26,6 +26,7 @@ type Server struct {
 
 	MiningManager			*mine.MiningManager
 	BlockManager			*blockManager
+	HistoryManager 			*historyManager
 	newBlock				chan *twayutil.Block
 	mu					 	sync.Mutex
 	addrMu 					sync.Mutex
@@ -41,6 +42,7 @@ func NewServer(log bool, mining bool) *Server {
 		peers: make(map[string]*serverPeer),
 		MiningManager: mine.NewMiningManager(b.BC.Tip),
 		BlockManager: NewBlockManager(log, mining),
+		HistoryManager: NewHistoryManager(),
 		chain: &*b.BC,
 		mining: mining,
 		newBlock: make(chan *twayutil.Block),
@@ -82,8 +84,8 @@ func (s *Server) RemovePeer(sp *serverPeer){
 func (s *Server) sendData(addr string, data []byte) error {
 	conn, err := net.Dial(conf.Protocol, addr)
 	if err != nil {
-		fmt.Printf("%s is not available\n", addr)
-		
+		s.Log(true, fmt.Sprintf("%s is not available\n", addr))
+		return err
 	} 
 	defer conn.Close()
 

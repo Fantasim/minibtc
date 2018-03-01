@@ -18,8 +18,6 @@ func (s *Server) HandleNewBlockMined(){
 			err = s.chain.AddBlock(new)
 			if err == nil {
 				s.Log(false, "[MINING] successfully added ON CHAIN")
-				s.Log(false, "[MINING] Height:", s.chain.Height)
-				s.Log(false, "[MINING] ", hex.EncodeToString(new.GetHash()))
 				listBlockTmp := make([]*twayutil.Block, 1)
 				listBlockTmp[0] = new
 				list := twayutil.GetListBlocksHashFromSlice(listBlockTmp)
@@ -38,9 +36,7 @@ func (s *Server) HandleNewBlockMined(){
 }
 
 func (s *Server) Mining(){
-	fmt.Println("server/mining.go -> mining start")
 	s.MiningManager.StartMining(s.newBlock, s.chain.Tip)
-	fmt.Println("server/mining.go -> mining stop")
 }
 
 func (s *Server) IsNodeAbleToMine() bool {
