@@ -62,7 +62,7 @@ func (s *Server) handleVersion(request []byte) {
 	}
 
 	if s.mining == true && payload.AddrSender.IsEqual(GetMainNode()) && blockchain.BC.Height >= payload.LastBlock && s.MiningManager.IsMining() == false {
-		s.Mining()
+	 	go s.Mining()
 	}
 
 	//établie les informations concernant le pair

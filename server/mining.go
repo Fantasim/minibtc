@@ -37,6 +37,7 @@ func (s *Server) HandleNewBlockMined(){
 
 func (s *Server) Mining(){
 	s.MiningManager.StartMining(s.newBlock, s.chain.Tip)
+	fmt.Println("MINING SUCCESSFULLY ENDED")
 }
 
 func (s *Server) IsNodeAbleToMine() bool {

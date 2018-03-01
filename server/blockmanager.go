@@ -110,7 +110,7 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server){
 		if s.MiningManager.IsMining() == true  {
 			s.newBlock <- new
 		} else if s.mining == true {
-			s.Mining()
+			go s.Mining()
 		}
 		bm.Log(true, fmt.Sprintf("block %d - %s successfully added on chain\n", bm.chain.Height, hash))
 		bm.download[hash].block = new
