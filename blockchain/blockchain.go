@@ -96,10 +96,7 @@ func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 	})
 	if err == nil {
 		BC.Height += 1
-		errr := UTXO.Reindex()
-		if errr != nil {
-			fmt.Println("Reindex error.")
-		}
+		go UTXO.Reindex()
 	}
 	return err
 }
