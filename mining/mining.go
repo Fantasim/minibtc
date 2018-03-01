@@ -5,7 +5,6 @@ import (
 	"tway/twayutil"
 	"tway/wallet"
 	"tway/util"
-	"fmt"
 	"math/big"
 	"time"
 	"math"
@@ -20,12 +19,14 @@ type MiningManager struct {
 	is_mining 	bool
 	start		time.Time
 	tip			[]byte
+	quit 		chan int
 }
 
 func NewMiningManager(tip []byte) *MiningManager {
 	return &MiningManager{
 		NewBlock: make(chan *twayutil.Block),
 		tip: tip,
+		quit: make(chan int),
 	}
 }
 
@@ -37,7 +38,7 @@ func (mm *MiningManager) UpdateTip(newTip []byte){
 	mm.tip = newTip
 }
 
-func (mm *MiningManager) run(pow *b.Pow, newBlock chan *twayutil.Block){
+func (mm *MiningManager) run(pow *b.Pow, newBlock chan *twayutil.Block, quit chan int){
 	var hashInt big.Int
 	var hash []byte
 	nonce := 0
@@ -46,8 +47,6 @@ func (mm *MiningManager) run(pow *b.Pow, newBlock chan *twayutil.Block){
 	go func(){
 		mm.is_mining = true 
 		for nonce < maxNonce {
-			if nonce % 100000 == 0 {
-			}
 			data := pow.PrepareData(util.EncodeInt(nonce))
 			hash = util.Sha256(data)
 			hashInt.SetBytes(hash[:])
@@ -81,25 +80,42 @@ func (mm *MiningManager) run(pow *b.Pow, newBlock chan *twayutil.Block){
 		}
 	}()
 	for {
-		new := <-newBlock
-		if bytes.Compare(pow.Block.Header.HashPrevBlock, new.Header.HashPrevBlock) == 0 {
-			stopMining = true
-			mm.tip = new.GetHash()
-			return
+		select {
+			case new := <-newBlock:
+				if bytes.Compare(pow.Block.Header.HashPrevBlock, new.Header.HashPrevBlock) == 0 {
+					stopMining = true
+					mm.tip = new.GetHash()
+					return
+				}
+			case <-mm.quit:
+				quit <- 1
+				stopMining = true
+				return
 		}
 	}
 }
 
 func (mm *MiningManager) StartMining(newBlock chan *twayutil.Block, tip []byte){
 	mm.start = time.Now()
-	fmt.Println("[MINING] START")
-	for {
+	quit := make(chan int)
+	var stop = false
+
+	go func(){
+		<-quit
+		stop = true
+	}()
+
+	for stop == false {
 		txs := mempool
 		_, _, fees := b.GetTotalAmounts(txs)
 		block := twayutil.NewBlock(txs, mm.tip, wallet.RandomWallet().PublicKey, fees)
 		//Créer une target de proof of work
 		pow := b.NewProofOfWork(block)
-		mm.run(pow, newBlock)
+		mm.run(pow, newBlock, quit)	
 	}
 	mm.is_mining = false
+}
+
+func (mm *MiningManager) Stop(){
+	mm.quit <- 1
 }
