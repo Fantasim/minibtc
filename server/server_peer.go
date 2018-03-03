@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+type listOfPeers map[string]*serverPeer
+
 type serverPeer struct {
 	*peer.Peer
 
@@ -31,4 +33,16 @@ func (sp *serverPeer) VerAckReceived(){
 	sp.mu.Lock()
 	sp.Peer.VerAckReceived()
 	defer sp.mu.Unlock()
+}
+
+/*IMPROVE_LATER*/
+func (list listOfPeers) GetPeersBasedOnHeight(minHeight int) listOfPeers {
+	ret := make(listOfPeers, 0)
+
+	for addr, p := range list {
+		if p.GetLastBlock() >= int64(minHeight) {
+			ret[addr] = p
+		}
+	}
+	return ret
 }

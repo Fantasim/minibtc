@@ -97,3 +97,21 @@ func (s *Server) treatPeersAfterPong(unTreatedPeers map[string]*serverPeer){
 		time.Sleep(500 * time.Millisecond)
 	}
 }
+
+/*IMPROVE_LATER*/
+//kind :
+//getblock
+func (s *Server) SelectPerfectPeer(kind string) *serverPeer {
+	
+	switch(kind){
+
+		case "getblock":
+			peers := s.peers.GetPeersBasedOnHeight(s.chain.Height + 1)
+			for _, p := range peers {
+				return p
+			}
+		default:
+			return nil
+	}
+	return nil	
+}
