@@ -59,14 +59,6 @@ func (mm *MiningManager) run(pow *b.Pow, newBlock chan *twayutil.Block, quit cha
 					//le serveur traitera le block via le block manager
 					//et informera le mining manager qu'un nouveau block a été ajouté à la chain
 					mm.NewBlock <- pow.Block
-					i := 0;
-					for {
-						if bytes.Compare(mm.tip, pow.Block.Header.HashPrevBlock) == 0 {
-							break;
-						}
-						time.Sleep(time.Microsecond * 10000)
-						i++
-					}
 					//signal que le minage de ce block est terminé.
 					//pour passer au block suivant
 					newBlock <- pow.Block
