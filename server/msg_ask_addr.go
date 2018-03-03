@@ -37,6 +37,7 @@ func (s *Server) handleAskAddr(request []byte) {
 		log.Panic(err)
 	}
 	addr := payload.AddrSender.String()
+	s.peers[addr].IncreaseBytesReceived(uint64(len(request)))
 	s.Log(true, "GetAddr received from :", addr)
 	//envoie une liste d'adresse au noeud à l'origine de la requete
 	s.sendAddr(payload.AddrSender)
