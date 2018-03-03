@@ -148,6 +148,9 @@ func (bm *blockManager) StartDownloadBlock(hash string, sp *serverPeer, expected
 }
 
 func (bm *blockManager) Log(printTime bool, c... interface{}){
+	if bm.log == false {
+		return 
+	}
 	fmt.Print("Block Manager: ")
 	if (bm.log == true){
 		if printTime == true {
