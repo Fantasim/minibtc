@@ -107,3 +107,4 @@ func (utxo *UTXOSet) CountTx() int {
 	})
 	return i
 }
+

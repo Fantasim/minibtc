@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"bytes"
 	"sync"
+	conf "tway/config"
 )
 
 const (
@@ -99,6 +100,39 @@ func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 		go UTXO.Reindex()
 	}
 	return err
+}
+
+func (b *Blockchain) RemoveLastBlock() (*twayutil.Block, error) {
+	last := b.GetLastBlock()
+	db := b.DB
+	if last == nil {
+		return last, nil
+	}
+	if bytes.Compare(last.Header.HashPrevBlock, conf.GENESIS_BLOCK_PREVHASH) == 0 {
+		return last, errors.New("can't remove genesis block")
+	}
+	blockHash := last.GetHash()
+	newTip := last.Header.HashPrevBlock
+	err := db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(BLOCK_BUCKET))
+		//recupere dans la db un block correspondant au hash du nouveau block
+		err := b.Delete(blockHash)
+		//si il existe deja
+		if err != nil {
+			return err
+		}
+		err = b.Put([]byte("l"), newTip)
+		if err != nil {
+			return err
+		}
+		BC.Tip = newTip
+		return nil
+	})
+	if err == nil {
+		BC.Height -= 1
+		go UTXO.Reindex()
+	}
+	return last, err
 }
 
 //Récupère la totalité des utxos de la chain

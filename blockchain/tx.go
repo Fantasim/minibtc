@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	s "tway/script"
 	"errors"
+	conf "tway/config"
+	"fmt"
 )
 
 //Cette fonction verifie chaque input de la transaction
@@ -22,6 +24,9 @@ func CheckIfTxIsCorrect(tx *twayutil.Transaction) error {
 	//pour chaque inputs
 	for idx, in := range tx.Inputs {
 		prevHash := hex.EncodeToString(in.PrevTransactionHash)
+
+		fmt.Println("check utxo", CheckIfInputIsAnUTXO(&in, prevTXs[prevHash]))
+
 		vout := util.DecodeInt(in.Vout)
 		//on recupère le script pubkey de la tx precente lié a cet input
 		scriptPubKey := prevTXs[prevHash].Outputs[vout].ScriptPubKey
@@ -50,6 +55,25 @@ func CheckIfTxIsCorrect(tx *twayutil.Transaction) error {
 		}
 	}
 	return nil
+}
+
+func CheckIfInputIsAnUTXO(in *twayutil.Input, prevTX *twayutil.Transaction) error {
+	vout := util.DecodeInt(in.Vout)
+	scriptPubKey := prevTX.Outputs[vout].ScriptPubKey
+	scriptSig := in.ScriptSig
+
+	fullScript := append(scriptSig, scriptPubKey...) 
+	pubKeyHash, err := s.Script.GetPubKeyHash(fullScript)
+	if err != nil {
+		return err
+	}
+	_, unpentOutputs := UTXO.GetUnspentOutputsByPubKeyHash(pubKeyHash, conf.MAX_COIN)
+	for _, UOutput := range unpentOutputs {
+		if bytes.Compare(UOutput.TxID, prevTX.GetHash()) == 0 {
+			return nil
+		}
+	}
+	return errors.New("not found")
 }
 
 //Récupère une transaction par son hash, avec le block dans lequel
