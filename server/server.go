@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+
+
 type Server struct {
 	version 				int32
 
@@ -24,13 +26,14 @@ type Server struct {
 	ipStatus				*NetAddress
 	chain			 		*b.Blockchain
 
+	newFetchAtHeight 		int //when chain having this height, fetch next blocks to get best tip
 	MiningManager			*mine.MiningManager
 	BlockManager			*blockManager
 	HistoryManager 			*historyManager
 	newBlock				chan *twayutil.Block
 	mu					 	sync.Mutex
 	addrMu 					sync.Mutex
-	peers             		map[string]*serverPeer
+	peers             		listOfPeers
 }
 
 //Nouvelle structure Server
@@ -88,6 +91,7 @@ func (s *Server) sendData(addr string, data []byte) error {
 		return err
 	} 
 	defer conn.Close()
+	go s.peers[addr].IncreaseBytesSent(uint64(len(data)))
 
 	//on envoie au noeud la data
 	_, err = io.Copy(conn, bytes.NewReader(data))
@@ -126,5 +130,4 @@ func (s *Server) StartServer() {
 		}
 		go s.HandleConnexion(conn)
 	}
-	
 }
