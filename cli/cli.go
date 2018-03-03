@@ -13,9 +13,12 @@ func (cli *CLI) printUsage() {
 	fmt.Println("Commands:")
 	fmt.Println(" block \t Manage block")
 	fmt.Println(" blockchain \t Manage blockchain")
+	fmt.Println(" blockchain_print \t Print blockchain")
 	fmt.Println(" server \t Manage server")
 	fmt.Println(" tx \t Manage transactions")
+	fmt.Println(" tx_create \t Create transaction")
 	fmt.Println(" wallet \t Manage local wallets")
+	fmt.Println(" utxo \t Manage UTXOs")
 }
 
 //Verifie les arguments
@@ -56,6 +59,9 @@ func (cli *CLI) listMenu(){
 
 		case "wallet":
 			walletCli()
+
+		case "utxo":
+			UTXOCli()
 		default: 
 			cli.printUsage()
 	}

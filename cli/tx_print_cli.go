@@ -58,6 +58,12 @@ func printTx(tx *twayutil.Transaction){
 	}
 }
 
+func printTxBasic(tx *twayutil.Transaction){
+	fmt.Printf("== TX %x ==\n", tx.GetHash())
+	fmt.Printf("    Coinbase: %t\n", tx.IsCoinbase())
+	fmt.Printf("    Value %d\n\n", tx.GetValue())
+}
+
 
 func TxPrintCli(){
 	TxCMD := flag.NewFlagSet("tx", flag.ExitOnError)
