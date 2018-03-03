@@ -36,6 +36,8 @@ func (s *Server) handlePing(request []byte) {
 		log.Panic(err)
 	}
 	addr := payload.AddrSender.String()
+	s.peers[addr].IncreaseBytesReceived(uint64(len(request)))
 	s.Log(true, "Ping received from :", addr)
 	s.sendPong(payload.AddrSender)
+
 }

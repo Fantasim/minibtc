@@ -52,6 +52,7 @@ func (s *Server) handleAddr(request []byte) {
 	
 	p := s.peers[addr]
 	p.GotAddr()
+	p.IncreaseBytesReceived(uint64(len(request)))
 	s.peers[addr] = p
 	
 	var nbNewPeers = 0

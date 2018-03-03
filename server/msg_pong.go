@@ -34,4 +34,5 @@ func (s *Server) handlePong(request []byte) {
 	addr := payload.AddrSender.String()
 	s.Log(true, "Pong received from :", addr)
 	s.peers[addr].PongReceived()
+	s.peers[addr].IncreaseBytesReceived(uint64(len(request)))
 }

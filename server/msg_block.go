@@ -39,6 +39,8 @@ func (s *Server) handleBlock(request []byte) {
 		log.Panic(err)
 	}
 	addr := payload.AddrSender.String()
+	s.peers[addr].IncreaseBytesReceived(uint64(len(request)))
+	
 	block := twayutil.DeserializeBlock(payload.Data)
 	if block != nil {
 		s.Log(true, "block "+ hex.EncodeToString(block.GetHash()) +" received from :", addr)
@@ -46,8 +48,5 @@ func (s *Server) handleBlock(request []byte) {
 		s.Log(true, "wrong block received from :", addr)		
 	}
 
-	s.Log(false, "handleBlock: current tip:", hex.EncodeToString(s.chain.Tip))
-	s.Log(false, "handleBlock: block prev hash:", hex.EncodeToString(block.Header.HashPrevBlock))
-	s.Log(false, "handleBlock: block hash:", hex.EncodeToString(block.GetHash()))
 	s.BlockManager.BlockDownloaded(block, s)
 }

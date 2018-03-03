@@ -37,6 +37,7 @@ func (s *Server) handleGetData(request []byte) {
 		log.Panic(err)
 	}
 	addr := payload.AddrSender.String()
+	s.peers[addr].IncreaseBytesReceived(uint64(len(request)))
 	s.Log(true, "GetData kind:"+payload.Kind+ " received from :", addr)
 	
 	if payload.Kind == "block" {

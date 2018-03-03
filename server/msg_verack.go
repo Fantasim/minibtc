@@ -34,9 +34,10 @@ func (s *Server) handleVerack(request []byte) {
 	}
 	addr := payload.AddrSender.String()
 	s.Log(true, "VerAck received from :", addr)
-
+	
 	p := s.peers[addr]
 	p.VerAckReceived()
+	p.IncreaseBytesReceived(uint64(len(request)))
 	s.peers[addr] = p
 	//si les echanges de version ont été realisé et que la derniere demande d'address avec ce noeud date de plus de conf.TimeInMinuteBetween2AskAddrWithASameNode
 	if p.IsVerAckReceived() && p.IsVersionSent() && time.Now().Add(time.Minute * conf.TimeInMinuteBetween2AskAddrWithASameNode * -1).After(time.Unix(0, p.GetLastAddrGetTime())) {

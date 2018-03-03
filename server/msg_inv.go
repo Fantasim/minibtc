@@ -4,6 +4,7 @@ import (
 	"log"
 	"encoding/hex"
 	"tway/util"
+	conf "tway/config"
 	"fmt"
 )
 
@@ -21,8 +22,8 @@ func (s *Server) rangeTxList(data [][]byte){
 }
 
 //parcours une liste hash de block suite a une requete handleInv
-func (s *Server) rangeBlockList(addrTo *NetAddress, data [][]byte, toSP *serverPeer){
-	for _, item := range data {
+func (s *Server) rangeBlockList(addrTo *NetAddress, data [][]byte, toSP *serverPeer, heightExpectedOfFirstElem int){
+	for idx, item := range data {
 		fmt.Println("block received:", hex.EncodeToString(item))
 		//on recupère le block correspondant au hash, si il existe
 		if b, _ := s.chain.GetBlockByHash(item); b == nil {
@@ -33,7 +34,11 @@ func (s *Server) rangeBlockList(addrTo *NetAddress, data [][]byte, toSP *serverP
 				_, err := s.sendGetData(addrTo, item, "block")
 				if err == nil {
 					//on indique au block manager que l'on commence a télécharger le block
-					s.BlockManager.StartDownloadBlock(hashBlock, toSP)
+					var heightExpected = -1
+					if heightExpectedOfFirstElem != -1 {
+						heightExpected = heightExpectedOfFirstElem + idx
+					}
+					s.BlockManager.StartDownloadBlock(hashBlock, toSP, int64(heightExpected))
 				}
 			}
 		}
@@ -71,16 +76,28 @@ func (s *Server) BootstrapInv(kind string, list [][]byte) float64 {
 
 //Receptionne une liste de hash de data (block || tx)
 func (s *Server) handleInv(request []byte){
-	var payload MsgInv
+	var payload MsgInv	
 	if err := getPayload(request, &payload); err != nil {
 		log.Panic(err)
 	}
-	s.Log(true , "Inv kind:"+payload.Kind+" received from :", payload.AddrSender.String())
+
+	addr := payload.AddrSender.String()
+	s.peers[addr].IncreaseBytesReceived(uint64(len(request)))
+	s.Log(true , "Inv kind:"+payload.Kind+" received from :", addr)
 	s.Log(false, "list of", len(payload.List), payload.Kind)
+
 	if payload.Kind == "block" {
-		s.rangeBlockList(payload.AddrSender, payload.List, s.peers[payload.AddrSender.String()])
+		var gbh *getBlocksHistory
+		var heightExpectedOfFirstElem = -1
+
+		gbh = s.HistoryManager.GetBlock[addr].Select(true).sortByDate(true).first()
+		if gbh != nil {
+			if gbh.Message.Range[1] - gbh.Message.Range[0] + 1 >= conf.MaxBlockPerMsg {
+				heightExpectedOfFirstElem = gbh.Message.Range[0]
+			}
+		}
+		s.rangeBlockList(payload.AddrSender, payload.List, s.peers[addr], heightExpectedOfFirstElem)		
 	} else {
 		s.rangeTxList(payload.List)
 	}
-
 }
