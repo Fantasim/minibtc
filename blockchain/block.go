@@ -178,18 +178,25 @@ func GetTotalAmounts(list []twayutil.Transaction) (int, int, int) {
 }
 
 //Recupère une liste de block dans un intervalle de hauteur donné
-//height == hauteur initiale de recuperation
-//max == height + nb de block a recupere
-func (b *Blockchain) GetNBlocksNextToHeight(height int, max int) map[string]*twayutil.Block {
+//heightStart == hauteur initiale de recuperation
+//max == heightStart + nb de block a recupere
+func (b *Blockchain) GetNBlocksNextToHeight(heightStart int, max int) map[string]*twayutil.Block {
 	var list = make(map[string]*twayutil.Block)
 	
+	if max > conf.MaxBlockPerMsg {
+		max = conf.MaxBlockPerMsg
+	}
+	if heightStart > 0 {
+		heightStart -= 1
+	}
+
 	be := NewExplorer()
-	for i := height; i < b.Height; i++ {
+	for i := heightStart; i < b.Height; i++ {
 		block := be.Next()
-		if len(list) == conf.MaxBlockPerMsg || block == nil || len(list) == max {
+		if block == nil || len(list) == max {
 			break
 		}
-		if (b.Height - i) < conf.MaxBlockPerMsg {
+		if (b.Height - i) <= max {
 			list[strconv.Itoa(i)] = block
 		}
 	}
