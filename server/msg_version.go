@@ -3,7 +3,6 @@ package server
 import (
 	"time"
 	conf "tway/config"
-	"tway/blockchain"
 	"log"
 )
 
@@ -56,15 +55,6 @@ func (s *Server) handleVersion(request []byte) {
 	s.Log(false, "\t - Block height:", payload.LastBlock)
 	s.Log(false, "\t - Version:", payload.ProtocolVersion, "\n")
 
-	if blockchain.BC.Height < payload.LastBlock {
-		s.sendAskBlocks(payload.AddrSender, [2]int{blockchain.BC.Height + 1, payload.LastBlock})
-		//lui demander des blocks
-	}
-
-	if s.mining == true && payload.AddrSender.IsEqual(GetMainNode()) && blockchain.BC.Height >= payload.LastBlock && s.MiningManager.IsMining() == false {
-	 	go s.Mining()
-	}
-
 	//établie les informations concernant le pair
 	//envoie un verack et sa version si non fait.
 	go func(){
@@ -74,6 +64,7 @@ func (s *Server) handleVersion(request []byte) {
 
 		p.SetLastBlock(int64(payload.LastBlock))
 		p.SetStartingHeight(int64(payload.LastBlock))
+		p.IncreaseBytesReceived(uint64(len(request)))
 		p.HasSentVersion()
 		if _, err := s.sendVerack(payload.AddrSender); err == nil {
 			p := s.peers[addr]
@@ -83,4 +74,18 @@ func (s *Server) handleVersion(request []byte) {
 		}
 		s.peers[addr] = p
 	}()
+
+	go func (){
+		if s.chain.Height < payload.LastBlock {
+			//lui demander des blocks
+			if s.MiningManager.IsMining() == true {
+				s.MiningManager.Stop()
+			}
+			s.askNewBlock(s.peers[payload.AddrSender.String()], payload.LastBlock)
+		}
+	}()
+
+	if s.mining == true && payload.AddrSender.IsEqual(GetMainNode()) && s.chain.Height >= payload.LastBlock && s.MiningManager.IsMining() == false {
+	 	go s.Mining()
+	}
 }
