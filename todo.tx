@@ -1,5 +1,3 @@
-- faire le fetch initial de la blockchain, tant que la blockchain a pas atteint la hauteur obtenu dans la version du main node, fetch des requetes get_blocks progressivement incrémentés.
-
 - Recalculer la difficulté de minage tous les 10 blocks, le minage d'un block doit prendre environ 20 secondes chacun.
 
 - Vérifier la viabilité des nouvelles transactions, et les transactions contenus dans les blocks, avec les UTXOs
