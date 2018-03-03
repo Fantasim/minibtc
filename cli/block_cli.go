@@ -80,6 +80,8 @@ func BlockPrintCli(){
 	hash := blockCMD.String("hash", "", "Print block if exist")
 	new := blockCMD.Bool("new", false, "Create and mine new block")
 	last := blockCMD.Bool("last", false, "print last block")
+	remove := blockCMD.Bool("remove", false, "remove block. /!\""+"Works only with --last")
+
 	handleParsingError(blockCMD)
 
 	if *hash != "" {
@@ -92,8 +94,17 @@ func BlockPrintCli(){
 		var empty []twayutil.Transaction
 		NewBlock(empty, 0)
 	} else if *last == true {
-		block := b.BC.GetLastBlock()
-		printBlockInChain(block, b.BC.Height)
+		if *remove == true {
+			_, err := b.BC.RemoveLastBlock()
+			if err != nil {
+				log.Panic(err)
+			} else {
+				fmt.Println("block [",b.BC.Height + 1, "] successfully removed")
+			}
+		} else {
+			block := b.BC.GetLastBlock()
+			printBlockInChain(block, b.BC.Height)
+		}
 	} else {
 		BlockPrintUsage()
 	}
