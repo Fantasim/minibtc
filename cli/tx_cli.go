@@ -63,7 +63,7 @@ func createTx(from string, to string, amount int, fees int) *twayutil.Transactio
 	for _, localUs := range localUnspents {
 		var emptyScript [][]byte
 		//on génère un input à partir de l'output
-		input := twayutil.NewTxInput(localUs.TxID, util.EncodeInt(localUs.Output), emptyScript)
+		input := twayutil.NewTxInput(localUs.TxID, util.EncodeInt(localUs.Idx), emptyScript)
 		//et on l'ajoute à la liste
 		inputs = append(inputs, input)
 		//on ajoute dans un tableau de string la clé publique correspondant 

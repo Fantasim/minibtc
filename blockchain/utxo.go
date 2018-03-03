@@ -5,6 +5,8 @@ import (
 	"tway/twayutil"
 	"tway/util"
 	"encoding/hex"
+	"encoding/gob"
+	"bytes"
 	"log"
 )
 
@@ -22,9 +24,39 @@ type UTXOSet struct {
 //Structure représentant les informations liés à un UTXO
 type UnspentOutput struct {
 	TxID []byte
-	Output int
-	Amount int
+	Idx int //index of output in tx
+	Output twayutil.Output
 }
+
+type UnspentOutputs struct {
+	Outputs []UnspentOutput
+}
+
+//TxOutputs -> []byte
+func (outs *UnspentOutputs) Serialize() []byte {
+	var encoded bytes.Buffer
+
+	enc := gob.NewEncoder(&encoded)
+	err := enc.Encode(outs)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return encoded.Bytes()
+}
+
+//[]byte -> TxOutputs
+func DeserializeTxOutputs(d []byte) *UnspentOutputs {
+	var outs UnspentOutputs
+
+	decoder := gob.NewDecoder(bytes.NewReader(d))
+	err := decoder.Decode(&outs)
+	if err != nil {
+		log.Panic(err)
+	}
+	return &outs
+}
+
 
 //Récupère une liste d'outputs non dépensé locké avec le pubKeyHash
 //d'un montant supérieur ou égal au montant passé en paramètre
@@ -39,19 +71,17 @@ func (utxo *UTXOSet) GetUnspentOutputsByPubKeyHash(pubKeyHash []byte, amount int
 
 		//Pour chaque transaction comportant des outputs non dépensés
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			outs := twayutil.DeserializeTxOutputs(v)
-			
+			unSpents := DeserializeTxOutputs(v)
 			//pour chaque output non dépnesé de la tx
-			for outIdx, out := range outs.Outputs {
+			for _, unSpent := range unSpents.Outputs {
 				//si l'output est locké avec la pubKeyHash passé en paramètre
 				//et que le montant accumulé est inférieur au montant passé en paramètre
 				
-				if out.IsLockedWithPubKeyHash(pubKeyHash) == true && accumulated < amount{
-					value := util.DecodeInt(out.Value)
+				if unSpent.Output.IsLockedWithPubKeyHash(pubKeyHash) == true && accumulated < amount{
+					value := util.DecodeInt(unSpent.Output.Value)
 					accumulated += value
 					//on ajoute l'output à la liste des utxo
-					usOutput := UnspentOutput{k, outIdx, value}
-					unspentOutputs = append(unspentOutputs, usOutput)
+					unspentOutputs = append(unspentOutputs, unSpent)
 				}
 			}
 		}
@@ -89,6 +119,14 @@ func (utxo *UTXOSet) Reindex() error {
 		return nil
 	})
 	return err
+}
+
+func OutputToUnspentOutput(out *twayutil.Output, tx *twayutil.Transaction, vout int) UnspentOutput {
+	return UnspentOutput{
+		TxID: tx.GetHash(),
+		Output: *out,
+		Idx: vout,
+	}
 }
 
 //Compte le nombre de transaction contenant des outputs non dépensés

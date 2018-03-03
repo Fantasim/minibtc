@@ -97,7 +97,7 @@ func BlockPrintCli(){
 		if *remove == true {
 			_, err := b.BC.RemoveLastBlock()
 			if err != nil {
-				log.Panic(err)
+				fmt.Println(err)
 			} else {
 				fmt.Println("block [",b.BC.Height + 1, "] successfully removed")
 			}

@@ -4,6 +4,7 @@ import (
 	"tway/util"
 	"encoding/hex"
 	"tway/config"
+	"errors"
 )
 
 var Script = new(script)
@@ -71,22 +72,6 @@ func (s *script) FourEqualFive() [][]byte {
 	)
 }
 
-func (s *script) TxScript() [][]byte {
-	sig, _ := hex.DecodeString("4e4a1458c0e5346edfb63b5b5e2d5c96fb40bf20b7c226d158abcd975bb1a2157e6c2a46ef60c956703e54552db546840be13ddaff97d065617a70422bcbf2e1")
-	pubk, _ := hex.DecodeString("bdd01e59dbc5103a1972c01adc90af9d319f768c7dcd35b107d9b0022067069e29465d2fe8c55680946263977821a6c12d7b1dfcd58e8258f8986d7759f38158")
-	pubkHash, _ := hex.DecodeString("c3cd8e22f0e4d5d8c51490ecdc548213f4e3086a")
-
-	return util.DupByteDoubleArray(
-		append([]byte{}, sig...),
-		append([]byte{}, pubk...),
-		append([]byte{}, OP_DUP),
-		append([]byte{}, OP_HASH160),
-		append([]byte{}, pubkHash...),
-		append([]byte{}, OP_EQUALVERIFY),
-		append([]byte{}, OP_CHECKSIG),
-	)
-}
-
 func (s *script) String(srpt [][]byte) string {
 	ret := ""
 	for _, elem := range srpt {
@@ -121,6 +106,12 @@ func (s *script) IsPayToPubKeyHash(scriptBytes [][]byte)bool{
 	return false
 }
 
+func (s *script) GetPubKeyHash(pubKeyScript [][]byte) ([]byte, error) {
+	if len(pubKeyScript) == 5 && len(pubKeyScript[2]) != 20 {
+		return []byte{}, errors.New("not a P2PKH script") 
+	}
+	return pubKeyScript[2], nil
+} 
 
 
 

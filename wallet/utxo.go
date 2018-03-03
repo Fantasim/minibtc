@@ -2,13 +2,14 @@ package wallet
 
 import (
 	b "tway/blockchain"
+	"tway/util"
 )
 
 //Structure représentant les informations liées 
 //à un UTXO présent dans un wallet local
 type LocalUnspentOutput struct {
 	TxID []byte
-	Output int
+	Idx int
 	Amount int
 	W *Wallet
 }
@@ -27,7 +28,7 @@ func GetLocalUnspentOutputsByPubKeyHash(pubKeyHash []byte, amount int) (int, []L
 	amount, unspents := utxo.GetUnspentOutputsByPubKeyHash(pubKeyHash, amount)
 	
 	for _, us := range unspents {
-		localUXO := LocalUnspentOutput{us.TxID, us.Output, us.Amount, w}
+		localUXO := LocalUnspentOutput{us.TxID, us.Idx, util.DecodeInt(us.Output.Value), w}
 		list = append(list, localUXO)
 	}
 
@@ -56,8 +57,8 @@ func (wInfo *WalletInfo) GetLocalUnspentOutputs(amount int, notAcceptedAddr... s
 		a, outs := utxo.GetUnspentOutputsByPubKeyHash(HashPubKey(ws.W.PublicKey), amount - total)
 		total += a
 		for _, uo := range outs {
-			uo := LocalUnspentOutput{uo.TxID, uo.Output, uo.Amount, ws.W}
-			localUnSpents = append(localUnSpents, uo)
+			luo := LocalUnspentOutput{uo.TxID, uo.Idx, util.DecodeInt(uo.Output.Value), ws.W}
+			localUnSpents = append(localUnSpents, luo)
 		} 
 	}
 	return total, localUnSpents

@@ -136,8 +136,8 @@ func (b *Blockchain) RemoveLastBlock() (*twayutil.Block, error) {
 }
 
 //Récupère la totalité des utxos de la chain
-func (b *Blockchain) FindUTXO() map[string]twayutil.TxOutputs {
-	utxo := make(map[string]twayutil.TxOutputs)
+func (b *Blockchain) FindUTXO() map[string]UnspentOutputs {
+	utxo := make(map[string]UnspentOutputs)
 	spentTXOs := make(map[string][]int)
 	e := NewExplorer()
 	
@@ -166,7 +166,7 @@ func (b *Blockchain) FindUTXO() map[string]twayutil.TxOutputs {
 						}
 					}
 					outs := utxo[txID]
-					outs.Outputs = append(outs.Outputs, out)
+					outs.Outputs = append(outs.Outputs, OutputToUnspentOutput(&out, &tx, idx))
 					utxo[txID] = outs
 				}
 

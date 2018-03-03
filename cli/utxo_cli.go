@@ -4,20 +4,21 @@ import (
 	"flag"
 	"fmt"
 	b "tway/blockchain"
-	"tway/util"
 	"bytes"
 	"encoding/hex"
 	"tway/wallet"
 	conf "tway/config"
 	"github.com/bradfitz/slice"
+	"tway/util"
 )
 
 func utxoUsage(){
 	fmt.Println(" Options:")
 	fmt.Println("	--all		Print all UTXOs")
+	fmt.Println("	--check		Check if UTXO's are well indexed")
+	fmt.Println("	--mine		Print all UTXOs linked with local wallets")
 	fmt.Println("	--printTX	Print tx linked with each UTXO")
 }
-
 
 func printAll(printTX bool){
 	UTXOs := b.BC.FindUTXO()
@@ -32,10 +33,11 @@ func printAll(printTX bool){
 		} else {
 			fmt.Println("txID:", txid)
 		}
-		for _, output := range outputs.Outputs {
-			fmt.Println("value:", util.DecodeInt(output.Value))
+		for _, output := range outputs.Outputs{
+			fmt.Println("value:", util.DecodeInt(output.Output.Value))
+			fmt.Println("vout:",  output.Idx)
+			fmt.Println()
 		}
-		fmt.Println()
 	}
 }
 
@@ -66,6 +68,7 @@ func printMine(printTX bool){
 			txIDPrinted[txid] = true
 		}
 		fmt.Println("value:",localOutput.Amount)
+		fmt.Println("vout:",  localOutput.Idx)
 	}
 }
 
@@ -86,7 +89,8 @@ func printLinkedWithTx(txID string, printTX bool){
 		fmt.Println()
 	}
 	for _, output := range outputs.Outputs {
-		fmt.Println("value:", util.DecodeInt(output.Value))
+		fmt.Println("value:", util.DecodeInt(output.Output.Value))
+		fmt.Println("vout:",  output.Idx)
 	}
 
 }
@@ -97,6 +101,7 @@ func UTXOCli(){
 	mine := utxoCMD.Bool("mine", false, "Print list of wallets stored")
 	txid := utxoCMD.String("txid", "", "Print UTXO linked with a tx")
 	printTX := utxoCMD.Bool("printTX", false, "Print tx linked with an utxo")
+	check := utxoCMD.Bool("check", false, "return true if utxos are well indexed")
 
 	handleParsingError(utxoCMD)
 	if *all == true {
@@ -105,6 +110,15 @@ func UTXOCli(){
 		printMine(*printTX)
 	} else if *txid != "" {
 		printLinkedWithTx(*txid, *printTX)
+	}  else if *check == true {
+		UTXOs := b.BC.FindUTXO()
+		var totalAmount = 0
+		for _, outputs := range UTXOs {
+			for _, output := range outputs.Outputs {
+				totalAmount += util.DecodeInt(output.Output.Value)
+			}
+		}
+		fmt.Println("Are UTXOs well indexed?", b.BC.Height * conf.REWARD == totalAmount)
 	} else {
 		utxoUsage()
 	}
