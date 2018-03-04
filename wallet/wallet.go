@@ -54,8 +54,20 @@ func GenerateWallet() string {
 func NewWallet() *Wallet {
 	private, public := newKeyPair()
 	wallet := Wallet{private, public}
-
 	return &wallet
+}
+
+func NewMiningWallet() []byte {
+	for _, ws := range Walletinfo.Ws {
+		if ws.Amount == 0 {
+			return ws.W.PublicKey
+		}
+	}
+	w := NewWallet()
+	addr := string(w.GetAddress())[:]
+	WalletList[addr] = w
+	SaveToFile()
+	return w.PublicKey
 }
 
 //Formate la clé publique en address (processus utilisé par le BTC)
