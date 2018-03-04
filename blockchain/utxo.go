@@ -110,7 +110,7 @@ func (utxo *UTXOSet) Reindex() error {
 		}
 		b := tx.Bucket(bucketName)
 		for txID, outs := range UTXO {
-			key, _ := hex.DecodeString(txID) 
+			key, _ := hex.DecodeString(txID)
 			err = b.Put(key, outs.Serialize())
 			if err != nil {
 				return err

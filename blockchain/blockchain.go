@@ -151,7 +151,6 @@ func (b *Blockchain) FindUTXO() map[string]UnspentOutputs {
 		for _, tx := range block.Transactions {
 
 			txID := hex.EncodeToString(tx.GetHash())
-			
 			Outputs:
 				//parcours la liste des outputs de la tx
 				for idx, out := range tx.Outputs {
@@ -169,7 +168,6 @@ func (b *Blockchain) FindUTXO() map[string]UnspentOutputs {
 					outs.Outputs = append(outs.Outputs, OutputToUnspentOutput(&out, &tx, idx))
 					utxo[txID] = outs
 				}
-
 				//si la transaction n'est pas coinbase
 				if tx.IsCoinbase() == false {
 					//pour chaque input de la tx

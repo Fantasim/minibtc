@@ -100,7 +100,7 @@ func (mm *MiningManager) StartMining(newBlock chan *twayutil.Block, tip []byte){
 	for stop == false {
 		txs := mempool
 		_, _, fees := b.GetTotalAmounts(txs)
-		block := twayutil.NewBlock(txs, mm.tip, wallet.RandomWallet().PublicKey, fees)
+		block := twayutil.NewBlock(txs, mm.tip, wallet.NewMiningWallet(), fees)
 		//Créer une target de proof of work
 		pow := b.NewProofOfWork(block)
 		mm.run(pow, newBlock, quit)	
