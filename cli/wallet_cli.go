@@ -12,6 +12,7 @@ func walletUsage(){
 	fmt.Println(" Options:")
 	fmt.Println("	--new		Generate a new wallet")
 	fmt.Println("	--list		Print list of local wallets")
+	fmt.Println("	--total 	Print total amount available in local wallets")
 }
 
 //Afficher les adresses du wallet
@@ -27,10 +28,20 @@ func PrintAddressStored(){
 	}
 }
 
+func PrintTotalAmountAvailable(){
+	wsList := wallet.Walletinfo.Ws
+	var total int
+	for _, ws := range wsList {
+		total += ws.Amount
+	}
+	fmt.Println(total, "coins are free to spend")
+}
+
 func walletCli(){
 	walletCMD := flag.NewFlagSet("wallet", flag.ExitOnError)
 	new := walletCMD.Bool("new", false, "Create a new wallet")
 	list := walletCMD.Bool("list", false, "Print list of wallets stored")
+	total := walletCMD.Bool("total", false, "Print total amount available in wallets stored")
 
 	handleParsingError(walletCMD)
 
@@ -40,6 +51,8 @@ func walletCli(){
 	} else if *new {
 		//genere un nouveau wallet
 		fmt.Println(wallet.GenerateWallet())
+	} else if *total {
+			PrintTotalAmountAvailable()
 	} else {
 		walletUsage()
 	}

@@ -58,7 +58,7 @@ func printBlock(block *twayutil.Block){
 }
 
 func NewBlock(txs []twayutil.Transaction, fees int){
-	block := twayutil.NewBlock(txs, b.BC.Tip, wallet.RandomWallet().PublicKey, fees)
+	block := twayutil.NewBlock(txs, b.BC.Tip, wallet.NewMiningWallet(), fees)
 	//Créer une target de proof of work
 	pow := b.NewProofOfWork(block)
 	//cherche le nonce correspondant à la target

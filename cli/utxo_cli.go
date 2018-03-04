@@ -18,6 +18,7 @@ func utxoUsage(){
 	fmt.Println("	--check		Check if UTXO's are well indexed")
 	fmt.Println("	--mine		Print all UTXOs linked with local wallets")
 	fmt.Println("	--printTX	Print tx linked with each UTXO")
+	fmt.Println("	--txid		Print UTXOs linked with a txID")
 }
 
 func printAll(printTX bool){
@@ -92,7 +93,17 @@ func printLinkedWithTx(txID string, printTX bool){
 		fmt.Println("value:", util.DecodeInt(output.Output.Value))
 		fmt.Println("vout:",  output.Idx)
 	}
+}
 
+func checkUTXO(){
+	UTXOs := b.BC.FindUTXO()
+	var totalAmount = 0
+	for _, outputs := range UTXOs {
+		for _, output := range outputs.Outputs {
+			totalAmount += util.DecodeInt(output.Output.Value)
+		}
+	}
+	fmt.Println("Are UTXOs well indexed?", b.BC.Height * conf.REWARD == totalAmount)
 }
 
 func UTXOCli(){
@@ -111,14 +122,7 @@ func UTXOCli(){
 	} else if *txid != "" {
 		printLinkedWithTx(*txid, *printTX)
 	}  else if *check == true {
-		UTXOs := b.BC.FindUTXO()
-		var totalAmount = 0
-		for _, outputs := range UTXOs {
-			for _, output := range outputs.Outputs {
-				totalAmount += util.DecodeInt(output.Output.Value)
-			}
-		}
-		fmt.Println("Are UTXOs well indexed?", b.BC.Height * conf.REWARD == totalAmount)
+		checkUTXO()
 	} else {
 		utxoUsage()
 	}
