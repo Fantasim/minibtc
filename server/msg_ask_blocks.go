@@ -5,7 +5,6 @@ import (
 	"tway/twayutil"
 	conf "tway/config"
 	"tway/util"
-	"fmt"
 )
 
 type MsgAskBlocks struct {
@@ -15,12 +14,10 @@ type MsgAskBlocks struct {
 }
 
 func (s *Server) askNewBlock(p *serverPeer, lastblock int)  {
-	fmt.Println("askNewBlock start")
 	var heightTo int
 	if p == nil {
 		p = s.SelectPerfectPeer("getblock")
 		if p == nil {
-			fmt.Println("peer got is nil")
 			return 
 		}
 		lastblock = int(p.GetLastBlock())
@@ -63,9 +60,7 @@ func (s *Server) askNewBlock(p *serverPeer, lastblock int)  {
 					(fonction appelé dans ./block_manager.go -> BlockDownloaded)
 				*/
 				if err == nil && (heightTo - s.chain.Height) == conf.MaxBlockPerMsg {
-					s.newFetchAtHeight = heightTo
-					fmt.Println("askNewBlock end", s.newFetchAtHeight)
-					
+					s.newFetchAtHeight = heightTo					
 				}
 			}
 		}

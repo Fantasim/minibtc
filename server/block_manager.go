@@ -79,14 +79,6 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server){
 		return
 	}
 
-	//on check le nouveau block
-	//si il y a une erreur, on supprime le block du manager, le block est invalide
-	err := bm.chain.CheckNewBlock(new)
-	if err != nil {
-		bm.Log(false, "wrong new block informations")		
-		delete(bm.download, hash)
-		return
-	}
 	//on recupere le dernier block de la chain
 	lastChainBlock := bm.chain.GetLastBlock()
 
@@ -112,6 +104,16 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server){
 		}()
 		return
 	}
+
+	//on check le nouveau block
+	//si il y a une erreur, on supprime le block du manager, le block est invalide
+	err := bm.chain.CheckNewBlock(new)
+	if err != nil {
+		bm.Log(false, "wrong new block informations")		
+		delete(bm.download, hash)
+		return
+	}
+	
 	//on ajoute le block à la chain
 	err = bm.chain.AddBlock(new)
 	if err == nil {
