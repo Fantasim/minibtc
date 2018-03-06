@@ -22,6 +22,9 @@ const (
 	MAX_COIN = 21000000000000
 	//Version du client
 	VERSION = byte(0x00)
+
+	NEW_DIFFICULTY_EACH_N_BLOCK = 5
+	TARGET_TIME_BETWEEN_TWO_BLOCKS = 20 //20 seconds 
 )
 
 func InitPKG(){
