@@ -104,7 +104,7 @@ func GetMerkleHash(txs []Transaction) []byte {
 	return util.NewMerkleTree(txsDoubleByteArray).RootNode.Data
 }
 
-func NewBlock(txs []Transaction, prevBlockHash []byte, pubKeyCoinbase []byte, total_fees int) *Block{
+func NewBlock(txs []Transaction, prevBlockHash []byte, pubKeyCoinbase []byte, total_fees int, bits int64) *Block{
 	block := &Block{}
 	//Récupère un wallet aléatoire vers qui envoyer la transaction coinbase
 
@@ -123,7 +123,7 @@ func NewBlock(txs []Transaction, prevBlockHash []byte, pubKeyCoinbase []byte, to
 		HashPrevBlock: prevBlockHash,
 		HashMerkleRoot: GetMerkleHash(txs),
 		Time:  util.EncodeInt(int(time.Now().Unix())),
-		Bits:  util.EncodeInt(1),
+		Bits:  util.EncodeInt(int(bits)),
 	}
 	block.Header = header
 
