@@ -14,9 +14,12 @@ import (
 
 func BlockPrintUsage(){
 	fmt.Println(" Options:")
-	fmt.Println(" --hash \t block's hash")
+	fmt.Println(" --hash \t Print a block by its hash")
+	fmt.Println(" --height \t Print a block by its height")
+	fmt.Println(" --last \t Print last block")
+	fmt.Println(" --loop \t Loop execution of a cmd. /!\""+"Works only with --new")
 	fmt.Println(" --new \t Create and add new blockchain onto the blockchain")
-	fmt.Println(" --last \t print last block")
+	fmt.Println(" --remove \t Remove block. /!\""+"Works only with --last")
 }
 
 
@@ -58,7 +61,7 @@ func printBlock(block *twayutil.Block){
 }
 
 func NewBlock(txs []twayutil.Transaction, fees int){
-	block := twayutil.NewBlock(txs, b.BC.Tip, wallet.NewMiningWallet(), fees)
+	block := twayutil.NewBlock(txs, b.BC.Tip, wallet.NewMiningWallet(), fees, b.BC.GetNewBits())
 	//Créer une target de proof of work
 	pow := b.NewProofOfWork(block)
 	//cherche le nonce correspondant à la target
@@ -79,7 +82,9 @@ func BlockPrintCli(){
 	blockCMD := flag.NewFlagSet("block", flag.ExitOnError)
 	hash := blockCMD.String("hash", "", "Print block if exist")
 	new := blockCMD.Bool("new", false, "Create and mine new block")
+	loop := blockCMD.Bool("loop", false, "Loop execution of a cmd. /!\""+"Works only with --new")
 	last := blockCMD.Bool("last", false, "print last block")
+	height := blockCMD.Int("height", 0, "Print a block by its height.")
 	remove := blockCMD.Bool("remove", false, "remove block. /!\""+"Works only with --last")
 
 	handleParsingError(blockCMD)
@@ -92,7 +97,12 @@ func BlockPrintCli(){
 		}
 	} else if *new == true {
 		var empty []twayutil.Transaction
-		NewBlock(empty, 0)
+		for {
+			NewBlock(empty, 0)
+			if *loop == false {
+				return
+			}
+		}
 	} else if *last == true {
 		if *remove == true {
 			_, err := b.BC.RemoveLastBlock()
@@ -104,6 +114,13 @@ func BlockPrintCli(){
 		} else {
 			block := b.BC.GetLastBlock()
 			printBlockInChain(block, b.BC.Height)
+		}
+	} else if *height > 0 {
+		block := b.BC.GetBlockByHeight(*height)
+		if block != nil {
+			printBlock(block)
+		} else {
+			fmt.Println("This block height doesn't exist.")
 		}
 	} else {
 		BlockPrintUsage()
