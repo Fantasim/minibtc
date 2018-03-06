@@ -11,7 +11,7 @@ import (
 )
 
 var maxNonce = math.MaxInt64
-const targetBits = 23
+const targetBits = 21
 
 type Pow struct {
 	Block  *twayutil.Block
@@ -20,9 +20,7 @@ type Pow struct {
 
 // NewProofOfWork builds and returns a ProofOfWork
 func NewProofOfWork(b *twayutil.Block) *Pow {
-	target := big.NewInt(1)
-	target.Lsh(target, uint(256-targetBits))
-
+	target := CalcNextTarget(big.NewInt(int64(util.DecodeInt(b.Header.Bits))))
 	pow := &Pow{b, target}
 
 	return pow

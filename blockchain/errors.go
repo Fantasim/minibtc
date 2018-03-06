@@ -7,5 +7,6 @@ const (
 	WRONG_BLOCK_PUTS_VALUE = "wrong inputs and outputs repartition" 
 	WRONG_SCRIPT = "wrong script"
 	WRONG_MERKLE_HASH = "wrong merkle hash"
+	WRONG_BITS = "wrong bits difficulty"
 	NOT_FOUND = "not found"
 )
