@@ -54,6 +54,10 @@ func (b *Blockchain) getHeight() {
 	b.Height = i
 }
 
+func (b *Blockchain) GetGenesisBlock() *twayutil.Block {
+	return b.GetBlockByHeight(1)
+}
+
 //Ajoute un block à la blockchain
 func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 	b.mu.Lock()
