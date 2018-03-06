@@ -109,6 +109,21 @@ func (b *Blockchain) GetBlockByHash(hash []byte) (*twayutil.Block, int) {
 	return block, b.GetBlockHeight(block.GetHash())
 }
 
+func (b *Blockchain) GetBlockByHeight(height int) *twayutil.Block {
+	if height <= 0 || height > b.Height {
+		return nil
+	}
+
+	be := NewExplorer()
+	i := b.Height
+	for i > height {
+		be.Next();
+		i--;
+	}
+	return be.Next()
+}
+
+
 //Recupere le dernier block de la chain
 func (b *Blockchain) GetLastBlock() *twayutil.Block {
 	block, _ := b.GetBlockByHash(b.Tip)
@@ -214,6 +229,10 @@ func (b *Blockchain) CheckNewBlock(new *twayutil.Block) error {
 	//if merkle root doesn't correspond to a merkle root with block's txs
 	if bytes.Compare(newBlockMerkle, twayutil.GetMerkleHash(new.Transactions)) != 0 {
 		return errors.New(WRONG_MERKLE_HASH)
+	}
+
+	if b.GetNewBits() != int64(util.DecodeInt(new.Header.Bits)) {
+		return errors.New(WRONG_BITS)
 	}
 
 	pow := NewProofOfWork(new)
