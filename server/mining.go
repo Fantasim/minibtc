@@ -2,35 +2,42 @@ package server
 
 import (
 	"bytes"
-	"tway/twayutil"
 	"encoding/hex"
+	"sync"
 )
 
 func (s *Server) HandleNewBlockMined(){
+	mu := sync.Mutex{}
 	for {
+		mu.Lock()
 		new := <- s.MiningManager.NewBlock
-		s.Log(true, "[MINING] block", hex.EncodeToString(new.GetHash()), "mined !")
+
+		copyNew := new
+		hashNew := copyNew.GetHash()
+		s.MiningManager.Log(true, "block", hex.EncodeToString(hashNew), "mined !")
 		//on recupere le dernier block de la chain
 		lastChainBlock := s.chain.GetLastBlock()
-		err := s.chain.CheckNewBlock(new);
-		if bytes.Compare(lastChainBlock.GetHash(), new.Header.HashPrevBlock) == 0 && err == nil {
-			err = s.chain.AddBlock(new)
+		if bytes.Compare(lastChainBlock.GetHash(), copyNew.Header.HashPrevBlock) == 0 {
+			err := s.chain.AddBlock(copyNew)
 			if err == nil {
-				s.Log(false, "[MINING] successfully added ON CHAIN")
-				listBlockTmp := make([]*twayutil.Block, 1)
-				listBlockTmp[0] = new
-				list := twayutil.GetListBlocksHashFromSlice(listBlockTmp)
+				s.MiningManager.AddToHistoryMined(copyNew)
+				s.MiningManager.Log(false, "successfully added ON CHAIN")
+
+				var list [][]byte
+	
+				list = append(list, hashNew)
 				percentageOfSuccess := s.BootstrapInv("block", list)
 				if percentageOfSuccess == 0 {
-					s.Log(false, "/!/ FAIL TO SEND BLOCK MINED")
-					return
+					s.MiningManager.Log(false, "/!/ FAIL TO SEND BLOCK MINED")
 				}
 			} else {
-				s.Log(false, "/!/ FAIL TO ADD ON CHAIN BLOCK MINED")
+				s.MiningManager.Log(false, "/!/ FAIL TO ADD ON CHAIN BLOCK MINED")
+				s.MiningManager.Stop()
 			}
 		} else {
-			s.Log(false, "/!/ Block is not next to current TIP")
+			s.MiningManager.Log(false, "/!/ Block is not next to current TIP")
 		}
+		mu.Unlock()
 	}
 }
 

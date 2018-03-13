@@ -1,5 +1,3 @@
 - Verifier la fonction CheckIfInputIsAnUTXO dans ./blockchain/tx.go en injectant des transactions construites a partir d'outputs dépensés
 
 - trier l'affichage des utxo dans le cli par height de blocks
-
-- Vérifier que la POW est correcte quand un noeud recoit un nouveau block, verifier que cela correspond au nombre de bits de difficulté

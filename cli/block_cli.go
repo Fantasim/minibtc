@@ -17,7 +17,7 @@ func BlockPrintUsage(){
 	fmt.Println(" --hash \t Print a block by its hash")
 	fmt.Println(" --height \t Print a block by its height")
 	fmt.Println(" --last \t Print last block")
-	fmt.Println(" --loop \t Loop execution of a cmd. /!\""+"Works only with --new")
+	fmt.Println(" --loop \t Loop execution of a cmd. /!\""+"Works only with : --new and --remove")
 	fmt.Println(" --new \t Create and add new blockchain onto the blockchain")
 	fmt.Println(" --remove \t Remove block. /!\""+"Works only with --last")
 }
@@ -26,8 +26,7 @@ func BlockPrintUsage(){
 func printBlockInChain(block *twayutil.Block, height int){
 	fmt.Printf("Block height: %d\n", height)
 	fmt.Printf("Hash: %x\n", block.GetHash())
-	fmt.Printf("Merkle root: %x\n", block.Header.HashMerkleRoot)
-	fmt.Printf("Size: %d\n", util.DecodeInt(block.Size))
+	fmt.Printf("Prev: %x\n", block.Header.HashPrevBlock)
 	fmt.Printf("Unix time: %d\n", util.DecodeInt(block.Header.Time))
 	fmt.Printf("Difficulty: %d\n", util.DecodeInt(block.Header.Bits))
 	fmt.Printf("Txs: %d\n", len(block.Transactions))
@@ -44,8 +43,7 @@ func printBlockInChain(block *twayutil.Block, height int){
 
 func printBlock(block *twayutil.Block){
 	fmt.Printf("Hash: %x\n", block.GetHash())
-	fmt.Printf("Merkle root: %x\n", block.Header.HashMerkleRoot)
-	fmt.Printf("Size: %d\n", util.DecodeInt(block.Size))
+	fmt.Printf("Prev: %x\n", block.Header.HashPrevBlock)
 	fmt.Printf("Unix time: %d\n", util.DecodeInt(block.Header.Time))
 	fmt.Printf("Difficulty: %d\n", util.DecodeInt(block.Header.Bits))
 	fmt.Printf("Txs: %d\n", len(block.Transactions))
@@ -55,7 +53,6 @@ func printBlock(block *twayutil.Block){
 		fmt.Printf("\t Hash: %x\n", tx.GetHash())
 		for idx, out := range tx.Outputs {
 			fmt.Printf("\t output[%d] Value: %d\n", idx, util.DecodeInt(out.Value))
-			fmt.Printf("\t output[%d] scriptPubKey: %s\n", idx, script.Script.String(out.ScriptPubKey))
 		}
 	}
 }
@@ -78,6 +75,54 @@ func NewBlock(txs []twayutil.Transaction, fees int){
 	}
 }
 
+
+func lastCMD(remove, loop bool){
+	if remove == true {
+		for {
+			_, err := b.BC.RemoveLastBlock()
+			if err != nil {
+				return
+				fmt.Println(err)
+			} else {
+				fmt.Println("block [",b.BC.Height + 1, "] successfully removed")
+			}
+			if loop == false {
+				return
+			}
+		}
+	} else {
+		block := b.BC.GetLastBlock()
+		printBlockInChain(block, b.BC.Height)
+	}
+}
+
+func heightCMD(height int){
+	block := b.BC.GetBlockByHeight(height)
+	if block != nil {
+		printBlock(block)
+	} else {
+		fmt.Println("This block height doesn't exist.")
+	}
+}
+
+func newCMD(loop bool){
+	var empty []twayutil.Transaction
+	for {
+		NewBlock(empty, 0)
+		if loop == false {
+			return
+		}
+	}
+}
+
+func hashCMD(hash string){
+	h, _ := hex.DecodeString(hash)
+	block, height := b.BC.GetBlockByHash(h)
+	if height != -1 {
+		printBlockInChain(block, height)
+	}
+}
+
 func BlockPrintCli(){
 	blockCMD := flag.NewFlagSet("block", flag.ExitOnError)
 	hash := blockCMD.String("hash", "", "Print block if exist")
@@ -90,38 +135,13 @@ func BlockPrintCli(){
 	handleParsingError(blockCMD)
 
 	if *hash != "" {
-		h, _ := hex.DecodeString(*hash)
-		block, height := b.BC.GetBlockByHash(h)
-		if height != -1 {
-			printBlockInChain(block, height)
-		}
+		hashCMD(*hash)
 	} else if *new == true {
-		var empty []twayutil.Transaction
-		for {
-			NewBlock(empty, 0)
-			if *loop == false {
-				return
-			}
-		}
+		newCMD(*loop)
 	} else if *last == true {
-		if *remove == true {
-			_, err := b.BC.RemoveLastBlock()
-			if err != nil {
-				fmt.Println(err)
-			} else {
-				fmt.Println("block [",b.BC.Height + 1, "] successfully removed")
-			}
-		} else {
-			block := b.BC.GetLastBlock()
-			printBlockInChain(block, b.BC.Height)
-		}
+		lastCMD(*remove, *loop)
 	} else if *height > 0 {
-		block := b.BC.GetBlockByHeight(*height)
-		if block != nil {
-			printBlock(block)
-		} else {
-			fmt.Println("This block height doesn't exist.")
-		}
+		heightCMD(*height)
 	} else {
 		BlockPrintUsage()
 	}

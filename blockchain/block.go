@@ -9,6 +9,7 @@ import (
 	"time"
 	"strconv"
 	"errors"
+	"fmt"
 )
 
 //Check la validité des transactions d'un block
@@ -232,6 +233,8 @@ func (b *Blockchain) CheckNewBlock(new *twayutil.Block) error {
 	}
 
 	if b.GetNewBits() != int64(util.DecodeInt(new.Header.Bits)) {
+		fmt.Println("CheckNewBlock : GetNewBits", b.GetNewBits())
+		fmt.Println("CheckNewBlock : new block bits", util.DecodeInt(new.Header.Bits))
 		return errors.New(WRONG_BITS)
 	}
 

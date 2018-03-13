@@ -94,7 +94,7 @@ func (s *Server) treatPeersAfterPong(unTreatedPeers map[string]*serverPeer){
 			}
 		}
 		//on sleep durant 500 MS
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 

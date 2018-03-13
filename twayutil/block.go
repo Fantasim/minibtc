@@ -116,7 +116,6 @@ func NewBlock(txs []Transaction, prevBlockHash []byte, pubKeyCoinbase []byte, to
 
 	block.Transactions = txs
 	block.Counter = uint(len(txs))
-
 	//Header du block
 	header := BlockHeader{
 		Version: []byte{conf.VERSION},

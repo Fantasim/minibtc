@@ -15,6 +15,9 @@ type MsgAddr struct {
 
 //Récupère la liste des adresses de confiance avec qui le noeud courant est ou a été contact
 func (s *Server) GetAddrList() [][]byte{
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	var ret [][]byte
 	for _, peer := range s.peers {
 		ret = append(ret, []byte(peer.GetAddr()))
@@ -40,7 +43,6 @@ func (s *Server) sendAddr(addrTo *NetAddress) ([]byte, error) {
 // une liste d'addresse de nouveaux pairs.
 func (s *Server) handleAddr(request []byte) {
 	s.addrMu.Lock()
-	
 	var payload MsgAddr
 	if err := getPayload(request, &payload); err != nil {
 		log.Panic(err)

@@ -37,14 +37,14 @@ type Server struct {
 }
 
 //Nouvelle structure Server
-func NewServer(log bool, mining bool) *Server {
+func NewServer(logServer bool, mining bool, logMining bool) *Server {
 	s := &Server{
-		log: log,
+		log: logServer,
 		version: conf.NodeVersion,
 		ipStatus: GetLocalNetAddr(),
 		peers: make(map[string]*serverPeer),
-		MiningManager: mine.NewMiningManager(b.BC.Tip),
-		BlockManager: NewBlockManager(log, mining),
+		MiningManager: mine.NewMiningManager(b.BC.Tip, logMining, b.BC),
+		BlockManager: NewBlockManager(logServer, mining),
 		HistoryManager: NewHistoryManager(),
 		chain: &*b.BC,
 		mining: mining,

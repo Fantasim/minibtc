@@ -166,3 +166,15 @@ func (bm *blockManager) Log(printTime bool, c... interface{}){
 		fmt.Print("\n")
 	}
 }
+
+func (bm *blockManager) GetDownloadedBlock(hash []byte) *twayutil.Block{
+	bm.mu.Lock()
+	defer bm.mu.Unlock()
+
+	hashString := hex.EncodeToString(hash)
+	d, exist := bm.download[hashString]
+	if exist {
+		return d.block
+	}
+	return nil
+}

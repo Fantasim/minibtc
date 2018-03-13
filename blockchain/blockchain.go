@@ -68,19 +68,18 @@ func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 		return errors.New("nil block")
 	}
 	blockHash := block.GetHash()
-
 	err := db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(BLOCK_BUCKET))
+		buck := tx.Bucket([]byte(BLOCK_BUCKET))
 		//recupere dans la db un block correspondant au hash du nouveau block
-		blockInDb := b.Get(blockHash)
+		blockInDb := buck.Get(blockHash)
 		//si il existe deja
 		if blockInDb != nil {
 			fmt.Println("Le block", hex.EncodeToString(blockHash), "existe deja")
 			return errors.New("block already exists")
 		}
 		//recupere le hash du block ayant la plus hauteur hauteur
-		lastHash := b.Get([]byte("l"))
-		lastBlockData := b.Get(lastHash)
+		lastHash := buck.Get([]byte("l"))
+		lastBlockData := buck.Get(lastHash)
 		lastBlock := twayutil.DeserializeBlock(lastBlockData)
 		lastBlockHash := lastBlock.GetHash()
 
@@ -88,19 +87,19 @@ func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 			return errors.New("New block is not the tip's next block")
 		}
 		//ajoute le block dans la db
-		err := b.Put(blockHash, block.Serialize())
+		err := buck.Put(blockHash, block.Serialize())
 		if err != nil {
 			return err
 		}
-		err = b.Put([]byte("l"), blockHash)
+		err = buck.Put([]byte("l"), blockHash)
 		if err != nil {
 			return err
 		}
-		BC.Tip = blockHash
+		b.Tip = blockHash
 		return nil
 	})
 	if err == nil {
-		BC.Height += 1
+		b.Height += 1
 		go UTXO.Reindex()
 	}
 	return err

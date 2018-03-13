@@ -3,18 +3,32 @@ package cli
 import (
 	"tway/server"
 	"flag"
-	"tway/wallet"
+	"fmt"
 )
+
+func ServerUsage(){
+	fmt.Println(" Options:")
+	fmt.Println(" --mining \t Enable mining")
+	fmt.Println(" --log-server \t Print server's logs")
+	fmt.Println(" --log-mining \t Print mining's logs")
+}
 
 func serverCli(){
 	serverCMD := flag.NewFlagSet("server", flag.ExitOnError)
+	
 	mining := serverCMD.Bool("mining", false, "enable mining")
-	log := serverCMD.Bool("log", false, "Print logs")
+	logServer := serverCMD.Bool("log-server", false, "Print logs")
+	logMining := serverCMD.Bool("log-mining", false, "Print mining logs")
+	help := serverCMD.Bool("help", false, "Print usage of server CMD")
+
 	handleParsingError(serverCMD)
-	if *mining == true && wallet.IsAWalletExist() == false {
-		wallet.GenerateWallet()
+
+	if *help == true {
+		ServerUsage()
+		return
 	}
-	s := server.NewServer(*log, *mining)
+
+	s := server.NewServer(*logServer, *mining, *logMining)
 	s.StartServer()
 }
 

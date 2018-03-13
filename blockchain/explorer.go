@@ -1,8 +1,6 @@
 package blockchain
 
 import (
-	"log"
-
 	conf "tway/config"
 	twayutil "tway/twayutil"
 	bolt "github.com/boltdb/bolt"
@@ -27,18 +25,19 @@ func (be *BlockchainExplorer) Next() *twayutil.Block{
 		return nil
 	}
 
-	var block *twayutil.Block
+	var block *twayutil.Block = nil
 
 	err := be.DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BLOCK_BUCKET))
 		encodedBlock := b.Get(be.CurrentHash)
-		block = twayutil.DeserializeBlock(encodedBlock)
+		if len(encodedBlock) > 0 {
+			block = twayutil.DeserializeBlock(encodedBlock)
+		}
 		return nil
 	})
-	if err != nil {
-		log.Panic(err)
+	if err != nil || block == nil {
+		return nil
 	}
-	
 	be.CurrentHash = block.Header.HashPrevBlock
 	return block
 }

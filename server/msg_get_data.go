@@ -22,7 +22,7 @@ func (s *Server) NewMsgGetData(addrTo *NetAddress, ID []byte, kind string) *MsgG
 }
 
 func (s *Server) sendGetData(addrTo *NetAddress, ID []byte, kind string) ([]byte, error) {
-	s.Log(true, "GetData kind:"+kind+ " sent to:", addrTo.String())
+	s.Log(true, fmt.Sprintf("GetData kind: %s, with ID:%s sent to %s", kind, hex.EncodeToString(ID), addrTo.String()))
 	//assigne en []byte la structure getblocks
 	payload := gobEncode(*s.NewMsgGetData(addrTo, ID, kind))
 	//on append la commande et le payload
@@ -38,7 +38,7 @@ func (s *Server) handleGetData(request []byte) {
 	}
 	addr := payload.AddrSender.String()
 	s.peers[addr].IncreaseBytesReceived(uint64(len(request)))
-	s.Log(true, "GetData kind:"+payload.Kind+ " received from :", addr)
+	s.Log(true, fmt.Sprintf("GetData kind: %s, with ID:%s received from %s", payload.Kind, hex.EncodeToString(payload.ID), addr))
 	
 	if payload.Kind == "block" {
 		//block
@@ -50,19 +50,16 @@ func (s *Server) handleGetData(request []byte) {
 		} else {
 			fmt.Println("block is nil :( handleGetData")
 			go func(){
-				time.Sleep(time.Second * 1)
-				block, _ := s.chain.GetBlockByHash(payload.ID)
-				if block == nil {
-					fmt.Println("AGAIN NIL")
-				} else {
-					fmt.Println("IT WORKS!!")
+				for {
+					time.Sleep(time.Millisecond * 50)
+					block, _ := s.chain.GetBlockByHash(payload.ID)
+					if block != nil {
+						s.sendBlock(payload.AddrSender, block)
+					}
 				}
 			}()
-			fmt.Println(hex.EncodeToString(payload.ID))
-			b := s.chain.GetLastBlock()
-			fmt.Println(hex.EncodeToString(b.GetHash()))
-			fmt.Println(s.chain.Height)
 		}
+
 	} else {
 		//tx
 	}

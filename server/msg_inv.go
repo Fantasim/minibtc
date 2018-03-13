@@ -61,6 +61,7 @@ func (s *Server) sendInv(addrTo *NetAddress, kind string, list [][]byte) ([]byte
 func (s *Server) BootstrapInv(kind string, list [][]byte) float64 {
 	var nbRequestSucceeded = 0
 	peers := s.GetCloserAndSafestPeers()
+
 	for addr, _ := range peers {
 		na := NewNetAddressIPPort(util.StringToNetIpAndPort(addr))
 		_, err := s.sendInv(na, kind, list)
@@ -82,7 +83,6 @@ func (s *Server) handleInv(request []byte){
 	addr := payload.AddrSender.String()
 	s.peers[addr].IncreaseBytesReceived(uint64(len(request)))
 	s.Log(true , "Inv kind:"+payload.Kind+" received from :", addr)
-	s.Log(false, "list of", len(payload.List), payload.Kind)
 
 	if payload.Kind == "block" {
 		var gbh *getBlocksHistory
