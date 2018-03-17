@@ -1,49 +1,43 @@
 package server
 
 import (
-	"sync"
-	"tway/twayutil"
+	"bytes"
 	"encoding/hex"
+	"fmt"
+	"sync"
 	"time"
 	b "tway/blockchain"
-	"fmt"
-	"bytes"
+	conf "tway/config"
+	"tway/twayutil"
 )
 
 type DownloadInformations struct {
-	sp 			*serverPeer
-	start 		int64 //ns
-	receivedAt 	int64 //ns
-	expectedHeight int64 //expected height for this block
-	block		*twayutil.Block //==nil if block hasn't been still downloaded
-	timeToRetry	int64 //ns
-	nbTry 		int64
+	sp               *serverPeer
+	start            int64           //ns
+	receivedAt       int64           //ns
+	expectedHeight   int64           //expected height for this block
+	block            *twayutil.Block //==nil if block hasn't been still downloaded
+	unConfirmedBlock *twayutil.Block
+	timeToRetry      int64 //ns
+	nbTry            int64
 }
 
 type blockManager struct {
-	NewBlock 		chan *twayutil.Block
-	download		map[string]*DownloadInformations
-	mu 				sync.Mutex
-	chain			*b.Blockchain
-	log				bool
+	NewBlock chan *twayutil.Block
+	download map[string]*DownloadInformations
+	mu       sync.Mutex
+	chain    *b.Blockchain
+	log      bool
+	orphanMu sync.Mutex
 }
 
 func NewBlockManager(log, mining bool) *blockManager {
 	return &blockManager{
 		NewBlock: make(chan *twayutil.Block),
 		download: make(map[string]*DownloadInformations),
-		chain: *&b.BC,
-		log: log,
+		chain:    *&b.BC,
+		log:      log,
 	}
-}
-
-func (bm *blockManager) IsExpectedBlockHeightIsDownloading(expectedHeight int64) bool {
-	for _, di := range bm.download {
-		if di.expectedHeight == expectedHeight {
-			return true
-		}
-	}
-	return false
 }
 
 //Cette fonction retourne true si le block lié au hash a été téléchargé
@@ -56,22 +50,21 @@ func (bm *blockManager) IsDownloading(hash string) bool {
 	return bm.download[hash] != nil && bm.download[hash].block == nil
 }
 
-
 //Cette fonction est appelé dans le fonction handle block [/block.go]
 //Elle permet de receptionner un block téléchargé et de controler chaque partie du block
 //permettant ainsi de le rejeter ou de l'ajouter a la blockchain locale.
 //elle met egalement a jour le blockmanager en fonction du resultat
-func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server){
+func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server) {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 
 	//si le block est vide
-	if new == nil  {
+	if new == nil {
 		bm.Log(false, "block is nil")
-		return 
+		return
 	}
 	//hash du block recu
-	hash := hex.EncodeToString(new.GetHash())	
+	hash := hex.EncodeToString(new.GetHash())
 
 	//si le block recu n'existe pas dans la liste des blocks en cours de téléchargement (si le block n'a pas été demandé)
 	if bm.download[hash] == nil {
@@ -93,15 +86,19 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server){
 			//500 MS
 			averageTimeToDownloadBlock = 1000000 * 500
 		}
+		if bm.download[hash].nbTry == 0 {
+			bm.download[hash].unConfirmedBlock = new
+		}
 		//on ajoute la date du nouvel essai pour ajoute le block à la chaine.
 		//nouvelle date = date actuel + temps moyen pour dl un block
 		bm.download[hash].nbTry += 1
 		bm.download[hash].timeToRetry = time.Now().Add(time.Nanosecond * time.Duration(averageTimeToDownloadBlock)).UnixNano()
-		go func(){
+		go func() {
 			//on sleep dans une goroutine en attendant le nouvel essai
 			time.Sleep(time.Nanosecond * time.Duration(averageTimeToDownloadBlock))
 			bm.BlockDownloaded(new, s)
 		}()
+		go bm.ReindexChain()
 		return
 	}
 
@@ -109,20 +106,20 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server){
 	//si il y a une erreur, on supprime le block du manager, le block est invalide
 	err := bm.chain.CheckNewBlock(new)
 	if err != nil {
-		bm.Log(false, "wrong new block informations")		
+		bm.Log(false, "wrong new block informations")
 		delete(bm.download, hash)
 		return
 	}
-	
+
 	//on ajoute le block à la chain
 	err = bm.chain.AddBlock(new)
 	if err == nil {
 		//met a jour le nouveau tip du mining manager
 		s.MiningManager.UpdateTip(new.GetHash())
 		//Si le noeud est en cours de minage
-		if s.MiningManager.IsMining() == true  {
+		if s.MiningManager.IsMining() == true {
 			s.newBlock <- new
-		} else if s.mining == true {
+		} else if s.mining == true && s.IsNodeAbleToMine() {
 			go s.Mining()
 		}
 		if bm.chain.Height == s.newFetchAtHeight {
@@ -134,27 +131,28 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server){
 		bm.download[hash].receivedAt = time.Now().UnixNano()
 	} else {
 		bm.Log(true, fmt.Sprintf("block %s hasn't been added on chain next to this error: %s\n", hash, err.Error()))
+		delete(bm.download, hash)
 	}
 }
 
 //Cette fonction est appelé lorsque l'on commence à télécharger un block depuis un pair
-func (bm *blockManager) StartDownloadBlock(hash string, sp *serverPeer, expectedHeight int64){
+func (bm *blockManager) StartDownloadBlock(hash string, sp *serverPeer, expectedHeight int64) {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 	bm.download[hash] = &DownloadInformations{
-		sp: sp, 
-		start: time.Now().UnixNano(), 
+		sp:             sp,
+		start:          time.Now().UnixNano(),
 		expectedHeight: expectedHeight,
 	}
 	bm.Log(true, fmt.Sprintf("Start downloading %s from %s", hash, sp.GetAddr()))
 }
 
-func (bm *blockManager) Log(printTime bool, c... interface{}){
+func (bm *blockManager) Log(printTime bool, c ...interface{}) {
 	if bm.log == false {
-		return 
+		return
 	}
 	fmt.Print("Block Manager: ")
-	if (bm.log == true){
+	if bm.log == true {
 		if printTime == true {
 			fmt.Print(time.Now().Format("15:04:05.000000"))
 			fmt.Print(" ")
@@ -167,7 +165,7 @@ func (bm *blockManager) Log(printTime bool, c... interface{}){
 	}
 }
 
-func (bm *blockManager) GetDownloadedBlock(hash []byte) *twayutil.Block{
+func (bm *blockManager) GetDownloadedBlock(hash []byte) *twayutil.Block {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 
@@ -177,4 +175,72 @@ func (bm *blockManager) GetDownloadedBlock(hash []byte) *twayutil.Block{
 		return d.block
 	}
 	return nil
+}
+
+func (bm *blockManager) IsContainOrphanBlock() bool {
+	bm.mu.Lock()
+	cpy := bm.download
+	bm.mu.Unlock()
+	var i = 0
+	for _, d := range cpy {
+		if d.nbTry > 0 && d.block == nil {
+			i++
+		}
+		if i >= conf.MaxBlockPerMsg {
+			return true
+		}
+	}
+	return false
+}
+
+func (bm *blockManager) GetUncomfirmedBlocks() []*twayutil.Block {
+	ret := make([]*twayutil.Block, 0)
+	bm.mu.Lock()
+	cpy := bm.download
+	bm.mu.Unlock()
+	for _, d := range cpy {
+		if d.block == nil && d.unConfirmedBlock != nil {
+			ret = append(ret, d.unConfirmedBlock)
+		}
+	}
+	return ret
+}
+
+func (bm *blockManager) GetLonguestChainHash() [][]byte {
+	var longuestChainHash [][]byte
+
+	unConfirmedBlocks := bm.GetUncomfirmedBlocks()
+	fmt.Println("unConfirmedBlocks nb:", len(unConfirmedBlocks))
+	/*for i := 0; i < len(unConfirmedBlocks); i++ {
+
+		var tmp [][]byte
+		for index, unConfirmed := range unConfirmedBlocks {
+			if index == 0 {
+				tmp = append(tmp, unConfirmed.GetHash())
+			} else {
+				if bytes.Compare(unConfirmed.Header.HashPrevBlock, tmp[len(tmp)-1]) == 0 {
+					tmp = append(tmp, unConfirmed.GetHash())
+				}
+			}
+		}
+		if len(tmp) > len(longuestChainHash) {
+			longuestChainHash = tmp
+		}
+	}*/
+	for _, unConfirmedBlock := range unConfirmedBlocks {
+		fmt.Println("hash:", hex.EncodeToString(unConfirmedBlock.GetHash()))
+		fmt.Println("prev:", hex.EncodeToString(unConfirmedBlock.Header.HashPrevBlock))
+		fmt.Println()
+	}
+	fmt.Println()
+	return longuestChainHash
+}
+
+func (bm *blockManager) ReindexChain() {
+	if bm.IsContainOrphanBlock() {
+		bm.orphanMu.Lock()
+		pendingBlockchain := bm.GetLonguestChainHash()
+		fmt.Println("pendingBlockchain length:", len(pendingBlockchain))
+		bm.orphanMu.Unlock()
+	}
 }

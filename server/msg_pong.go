@@ -2,21 +2,15 @@ package server
 
 import (
 	"log"
+	"tway/serverutil"
 )
 
-type MsgPong struct {
-	// Address of the local peer.
-	AddrSender *NetAddress
-	// Address of the local peer.
-	AddrReceiver *NetAddress
-}
-
-func (s *Server) NewPong(addrTo *NetAddress) *MsgPong {
-	return &MsgPong{s.ipStatus, addrTo}
+func (s *Server) NewPong(addrTo *serverutil.NetAddress) *serverutil.MsgPong {
+	return &serverutil.MsgPong{s.ipStatus, addrTo}
 }
 
 //envoie une requete pong (reponse à un ping)
-func (s *Server) sendPong(addrTo *NetAddress) ([]byte, error) {
+func (s *Server) sendPong(addrTo *serverutil.NetAddress) ([]byte, error) {
 	addr := addrTo.String()
 
 	s.Log(true, "Pong sent to:", addr)
@@ -27,12 +21,14 @@ func (s *Server) sendPong(addrTo *NetAddress) ([]byte, error) {
 
 //Receptionne une requete pong (reponse d'un ping)
 func (s *Server) handlePong(request []byte) {
-	var payload MsgPong
+	var payload serverutil.MsgPong
 	if err := getPayload(request, &payload); err != nil {
 		log.Panic(err)
 	}
 	addr := payload.AddrSender.String()
 	s.Log(true, "Pong received from :", addr)
-	s.peers[addr].PongReceived()
-	s.peers[addr].IncreaseBytesReceived(uint64(len(request)))
+	p, _ := s.GetPeer(addr)
+	p.PongReceived()
+	p.IncreaseBytesReceived(uint64(len(request)))
+	s.AddPeer(p)
 }

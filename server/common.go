@@ -2,13 +2,14 @@ package server
 
 import (
 	"bytes"
-	"fmt"
 	"encoding/gob"
-	conf "tway/config"
+	"fmt"
 	"log"
-	"tway/util"
 	"strconv"
 	"time"
+	conf "tway/config"
+	"tway/serverutil"
+	"tway/util"
 )
 
 func commandToBytes(command string) []byte {
@@ -24,7 +25,7 @@ func commandToBytes(command string) []byte {
 //retourne un []byte representant la cmd en string
 func bytesToCommand(bytes []byte) string {
 	var command []byte
-	
+
 	for _, b := range bytes {
 		if b != 0x0 {
 			command = append(command, b)
@@ -56,7 +57,7 @@ func getPayload(request []byte, payload interface{}) error {
 	//ecrit dans le buffeur le payload de la request de commandLength bit jusqu'à la fin
 	buff.Write(request[conf.CommandLength:])
 	//[]byte en structure verzion
-  	dec := gob.NewDecoder(&buff)
+	dec := gob.NewDecoder(&buff)
 	err := dec.Decode(payload)
 	if err != nil {
 		return err
@@ -65,22 +66,22 @@ func getPayload(request []byte, payload interface{}) error {
 }
 
 //Cette fonction recupere l'adresse locale du noeud
-func GetLocalNetAddr() *NetAddress {
+func GetLocalNetAddr() *serverutil.NetAddress {
 	ip, err := util.GetIP()
 	if err != nil {
 		log.Panic(err)
 	}
 	port, _ := strconv.Atoi(conf.NODE_ID)
-	addrMe := NewNetAddressIPPort(ip, uint16(port))
+	addrMe := serverutil.NewNetAddressIPPort(ip, uint16(port))
 	return addrMe
 }
 
 //Cette fonction recupère l'adresse du noeud principale
-func GetMainNode() *NetAddress {
-	return NewNetAddressIPPort(conf.MainNodeIP, conf.MainNodePort)
+func GetMainNode() *serverutil.NetAddress {
+	return serverutil.NewNetAddressIPPort(conf.MainNodeIP, conf.MainNodePort)
 }
 
-func (s *Server) LocalWaiting(){
+func (s *Server) LocalWaiting() {
 	if s.prod == false {
 		time.Sleep(time.Millisecond * 5)
 	}

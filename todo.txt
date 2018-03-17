@@ -1,3 +1,5 @@
+- Recalculer la difficulté de minage tous les 10 blocks, le minage d'un block doit prendre environ 20 secondes chacun.
+
 - Verifier la fonction CheckIfInputIsAnUTXO dans ./blockchain/tx.go en injectant des transactions construites a partir d'outputs dépensés
 
 - trier l'affichage des utxo dans le cli par height de blocks

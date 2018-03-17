@@ -75,7 +75,6 @@ func NewBlock(txs []twayutil.Transaction, fees int){
 	}
 }
 
-
 func lastCMD(remove, loop bool){
 	if remove == true {
 		for {

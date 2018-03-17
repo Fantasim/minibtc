@@ -65,7 +65,7 @@ func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 	
 	db := b.DB
 	if block == nil {
-		return errors.New("nil block")
+		return errors.New(NIL_BLOCK)
 	}
 	blockHash := block.GetHash()
 	err := db.Update(func(tx *bolt.Tx) error {
@@ -75,7 +75,7 @@ func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 		//si il existe deja
 		if blockInDb != nil {
 			fmt.Println("Le block", hex.EncodeToString(blockHash), "existe deja")
-			return errors.New("block already exists")
+			return errors.New(BLOCK_EXISTS)
 		}
 		//recupere le hash du block ayant la plus hauteur hauteur
 		lastHash := buck.Get([]byte("l"))
@@ -84,7 +84,7 @@ func (b *Blockchain) AddBlock(block *twayutil.Block) error {
 		lastBlockHash := lastBlock.GetHash()
 
 		if bytes.Compare(block.Header.HashPrevBlock, lastBlockHash) != 0 {
-			return errors.New("New block is not the tip's next block")
+			return errors.New(NO_NEXT_TO_TIP_ERROR)
 		}
 		//ajoute le block dans la db
 		err := buck.Put(blockHash, block.Serialize())

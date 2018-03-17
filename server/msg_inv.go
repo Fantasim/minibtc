@@ -1,27 +1,19 @@
 package server
 
 import (
-	"log"
 	"encoding/hex"
-	"tway/util"
+	"log"
 	conf "tway/config"
+	"tway/server/peerhistory"
+	"tway/serverutil"
+	"tway/util"
 )
 
-type MsgInv struct {
-	// Address of the local peer.
-	AddrSender *NetAddress
-	// Address of the local peer.
-	AddrReceiver *NetAddress
-	Kind string // "tx" || "block"
-	List [][]byte
-}
-
-
-func (s *Server) rangeTxList(data [][]byte){
+func (s *Server) rangeTxList(data [][]byte) {
 }
 
 //parcours une liste hash de block suite a une requete handleInv
-func (s *Server) rangeBlockList(addrTo *NetAddress, data [][]byte, toSP *serverPeer, heightExpectedOfFirstElem int){
+func (s *Server) rangeBlockList(addrTo *serverutil.NetAddress, data [][]byte, toSP *serverPeer, heightExpectedOfFirstElem int) {
 	for idx, item := range data {
 		//on recupère le block correspondant au hash, si il existe
 		if b, _ := s.chain.GetBlockByHash(item); b == nil {
@@ -31,11 +23,11 @@ func (s *Server) rangeBlockList(addrTo *NetAddress, data [][]byte, toSP *serverP
 				//on demande le block au noeud qui a envoyé la liste de blocks
 				_, err := s.sendGetData(addrTo, item, "block")
 				if err == nil {
-					//on indique au block manager que l'on commence a télécharger le block
 					var heightExpected = -1
 					if heightExpectedOfFirstElem != -1 {
 						heightExpected = heightExpectedOfFirstElem + idx
 					}
+					//on indique au block manager que l'on commence a télécharger le block
 					s.BlockManager.StartDownloadBlock(hashBlock, toSP, int64(heightExpected))
 				}
 			}
@@ -43,13 +35,13 @@ func (s *Server) rangeBlockList(addrTo *NetAddress, data [][]byte, toSP *serverP
 	}
 }
 
-func (s *Server) NewMsgInv(addrTo *NetAddress, kind string, list [][]byte) *MsgInv{
-	return &MsgInv{s.ipStatus, addrTo, kind, list}
+func (s *Server) NewMsgInv(addrTo *serverutil.NetAddress, kind string, list [][]byte) *serverutil.MsgInv {
+	return &serverutil.MsgInv{s.ipStatus, addrTo, kind, list}
 }
 
-//Envoie une liste de hash de data (block || tx) 
-func (s *Server) sendInv(addrTo *NetAddress, kind string, list [][]byte) ([]byte, error) {
-	s.Log(true, "Inv kind:"+kind+ " sent to:", addrTo.String())
+//Envoie une liste de hash de data (block || tx)
+func (s *Server) sendInv(addrTo *serverutil.NetAddress, kind string, list [][]byte) ([]byte, error) {
+	s.Log(true, "Inv kind:"+kind+" sent to:", addrTo.String())
 	//assigne en []byte la structure getblocks
 	payload := gobEncode(*s.NewMsgInv(addrTo, kind, list))
 	//on append la commande et le payload
@@ -63,7 +55,7 @@ func (s *Server) BootstrapInv(kind string, list [][]byte) float64 {
 	peers := s.GetCloserAndSafestPeers()
 
 	for addr, _ := range peers {
-		na := NewNetAddressIPPort(util.StringToNetIpAndPort(addr))
+		na := serverutil.NewNetAddressIPPort(util.StringToNetIpAndPort(addr))
 		_, err := s.sendInv(na, kind, list)
 		if err == nil {
 			nbRequestSucceeded++
@@ -72,29 +64,38 @@ func (s *Server) BootstrapInv(kind string, list [][]byte) float64 {
 	return float64(len(peers)) / float64(nbRequestSucceeded) * 100
 }
 
-
 //Receptionne une liste de hash de data (block || tx)
-func (s *Server) handleInv(request []byte){
-	var payload MsgInv	
+func (s *Server) handleInv(request []byte) {
+	var payload serverutil.MsgInv
 	if err := getPayload(request, &payload); err != nil {
 		log.Panic(err)
 	}
 
 	addr := payload.AddrSender.String()
-	s.peers[addr].IncreaseBytesReceived(uint64(len(request)))
-	s.Log(true , "Inv kind:"+payload.Kind+" received from :", addr)
+	//augmente le nombre bytes recu depuis ce noeud.
+	p, _ := s.GetPeer(addr)
+	p.IncreaseBytesReceived(uint64(len(request)))
+	s.AddPeer(p)
+	s.Log(true, "Inv kind:"+payload.Kind+" received from :", addr)
 
+	//si la requete inv envoie des hash de blocks
 	if payload.Kind == "block" {
-		var gbh *getBlocksHistory
+		var gbh *peerhistory.GetBlocksHistory
 		var heightExpectedOfFirstElem = -1
 
-		gbh = s.HistoryManager.GetBlock[addr].Select(true).sortByDate(true).first()
+		//on récupère un historique de demande de block en vers le noeud émetteur
+		//de la requête inv courante.
+		gbh = s.HistoryManager.GetBlock[addr].Select(true).SortByDate(true).First()
 		if gbh != nil {
-			if gbh.Message.Range[1] - gbh.Message.Range[0] + 1 >= conf.MaxBlockPerMsg {
+			//si l'intervalle demandé précédemment est supérieur ou égale au nombre maximal de block
+			//qu'un noeud peut demander par requête
+			if gbh.Message.Range[1]-gbh.Message.Range[0]+1 >= conf.MaxBlockPerMsg {
+				//la hauteur de block attendu du premier element de la liste est
+				//la hauteur initial demandé dans une precedente requête
 				heightExpectedOfFirstElem = gbh.Message.Range[0]
 			}
 		}
-		s.rangeBlockList(payload.AddrSender, payload.List, s.peers[addr], heightExpectedOfFirstElem)		
+		s.rangeBlockList(payload.AddrSender, payload.List, p, heightExpectedOfFirstElem)
 	} else {
 		s.rangeTxList(payload.List)
 	}

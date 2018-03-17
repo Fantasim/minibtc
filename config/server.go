@@ -1,9 +1,6 @@
 package config
 
-import (
-)
-
-const MaxBlockPerMsg = 5
-const TimeInSecondAfterPingWithoutPongToRemove int64 = 5 
+const MaxBlockPerMsg = 4
+const MaxHeadersPerMsg = 50
+const TimeInSecondAfterPingWithoutPongToRemove int64 = 3
 const TimeInMinuteBetween2AskAddrWithASameNode = 30
-

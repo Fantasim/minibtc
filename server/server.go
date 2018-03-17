@@ -1,60 +1,60 @@
 package server
 
 import (
-	"net"
-	conf "tway/config"
-	b "tway/blockchain"
-	mine "tway/mining"
-	"log"
-	"fmt"
-	"tway/twayutil"
-	"sync"
-	"io"
 	"bytes"
+	"fmt"
+	"io"
+	"log"
+	"net"
+	"sync"
 	"time"
+	b "tway/blockchain"
+	conf "tway/config"
+	mine "tway/mining"
+	peerhistory "tway/server/peerhistory"
+	"tway/serverutil"
+	"tway/twayutil"
 )
 
-
-
 type Server struct {
-	version 				int32
+	version int32
 
-	log						bool
-	mining 					bool
-	prod					bool
+	log    bool
+	mining bool
+	prod   bool
 	//ip of user who run server
-	ipStatus				*NetAddress
-	chain			 		*b.Blockchain
+	ipStatus *serverutil.NetAddress
+	chain    *b.Blockchain
 
-	newFetchAtHeight 		int //when chain having this height, fetch next blocks to get best tip
-	MiningManager			*mine.MiningManager
-	BlockManager			*blockManager
-	HistoryManager 			*historyManager
-	newBlock				chan *twayutil.Block
-	mu					 	sync.Mutex
-	addrMu 					sync.Mutex
-	peers             		listOfPeers
+	newFetchAtHeight int //when chain having this height, fetch next blocks to get best tip
+	MiningManager    *mine.MiningManager
+	BlockManager     *blockManager
+	HistoryManager   *peerhistory.HistoryManager
+	newBlock         chan *twayutil.Block
+	mu               sync.Mutex
+	addrMu           sync.Mutex
+	peers            sync.Map
 }
 
 //Nouvelle structure Server
 func NewServer(logServer bool, mining bool, logMining bool) *Server {
 	s := &Server{
-		log: logServer,
-		version: conf.NodeVersion,
-		ipStatus: GetLocalNetAddr(),
-		peers: make(map[string]*serverPeer),
-		MiningManager: mine.NewMiningManager(b.BC.Tip, logMining, b.BC),
-		BlockManager: NewBlockManager(logServer, mining),
-		HistoryManager: NewHistoryManager(),
-		chain: &*b.BC,
-		mining: mining,
-		newBlock: make(chan *twayutil.Block),
+		log:            logServer,
+		version:        conf.NodeVersion,
+		ipStatus:       GetLocalNetAddr(),
+		peers:          sync.Map{},
+		MiningManager:  mine.NewMiningManager(b.BC.Tip, logMining, b.BC),
+		BlockManager:   NewBlockManager(logServer, mining),
+		HistoryManager: peerhistory.NewHistoryManager(),
+		chain:          &*b.BC,
+		mining:         mining,
+		newBlock:       make(chan *twayutil.Block),
 	}
 	return s
 }
 
-func (s *Server) Log(printTime bool, c... interface{}){
-	if (s.log == true){
+func (s *Server) Log(printTime bool, c ...interface{}) {
+	if s.log == true {
 		if printTime == true {
 			fmt.Print(time.Now().Format("15:04:05.000000"))
 			fmt.Print(" ")
@@ -68,19 +68,24 @@ func (s *Server) Log(printTime bool, c... interface{}){
 }
 
 //Ajoute un nouveau pair
-func (s *Server) AddPeer(sp *serverPeer){
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.peers[sp.GetAddr()] == nil {
-		s.peers[sp.GetAddr()] = sp
+func (s *Server) AddPeer(sp *serverPeer) {
+	s.peers.Store(sp.GetAddr(), sp)
+}
+
+func (s *Server) GetPeer(addr string) (*serverPeer, bool) {
+	val, exist := s.peers.Load(addr)
+	if exist == false {
+		newP := NewServerPeer(addr)
+		s.peers.Store(addr, newP)
+		return newP, exist
 	}
+	ret := val.(*serverPeer)
+	return ret, exist
 }
 
 //supprime un pair par son adresse
-func (s *Server) RemovePeer(sp *serverPeer){
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.peers, sp.GetAddr())
+func (s *Server) RemovePeer(sp *serverPeer) {
+	s.peers.Delete(sp.GetAddr())
 }
 
 //Envoie une data par requete TCP
@@ -89,10 +94,13 @@ func (s *Server) sendData(addr string, data []byte) error {
 	if err != nil {
 		s.Log(true, fmt.Sprintf("%s is not available\n", addr))
 		return err
-	} 
+	}
 	defer conn.Close()
-	go s.peers[addr].IncreaseBytesSent(uint64(len(data)))
-
+	go func() {
+		p, _ := s.GetPeer(addr)
+		p.IncreaseBytesSent(uint64(len(data)))
+		s.AddPeer(p)
+	}()
 	//on envoie au noeud la data
 	_, err = io.Copy(conn, bytes.NewReader(data))
 	return err
@@ -108,20 +116,21 @@ func (s *Server) StartServer() {
 	fmt.Println("Running on", s.ipStatus.String())
 	fmt.Println("Current chain height:", b.BC.Height)
 	fmt.Println("Main node:", s.ipStatus.IsEqual(GetMainNode()) == true, "\n")
-	
+
 	if s.mining == true {
 		go s.HandleNewBlockMined()
 	}
 
 	//si l'adresse du noeud n'est pas un node connu
-	if s.ipStatus.IsEqual(GetMainNode()) == false  {
-
-		addr := GetMainNode().String()
-		s.AddPeer(NewServerPeer(addr))
-		//on envoie notre version de la blockchain au noeud principale
-		s.sendVersion(GetMainNode())
+	if s.ipStatus.IsEqual(GetMainNode()) == false {
+		go func() {
+			addr := GetMainNode().String()
+			s.AddPeer(NewServerPeer(addr))
+			//on envoie notre version de la blockchain au noeud principale
+			s.sendVersion(GetMainNode())
+		}()
 	}
-	
+
 	for {
 		//attend le prochain appel
 		conn, err := ln.Accept()

@@ -8,5 +8,7 @@ const (
 	WRONG_SCRIPT = "wrong script"
 	WRONG_MERKLE_HASH = "wrong merkle hash"
 	WRONG_BITS = "wrong bits difficulty"
+	NIL_BLOCK = "nil block"
 	NOT_FOUND = "not found"
+	BLOCK_EXISTS = "block already exists"
 )

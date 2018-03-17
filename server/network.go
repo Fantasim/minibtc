@@ -1,9 +1,10 @@
 package server
 
 import (
-	"tway/util"
 	"time"
 	conf "tway/config"
+	"tway/serverutil"
+	"tway/util"
 )
 
 //Recupère une liste d'address non traité
@@ -11,12 +12,13 @@ import (
 //ni échangé les versions.
 func (s *Server) ListOfUntreatedPeers() map[string]*serverPeer {
 	ret := make(map[string]*serverPeer)
-
-	for addr, p := range s.peers {
+	s.peers.Range(func(key, val interface{}) bool {
+		p := val.(*serverPeer)
 		if p.GetLastPingSentTime() == 0 && p.IsVersionSent() == false {
-			ret[addr] = p
+			ret[p.GetAddr()] = p
 		}
-	}
+		return true
+	})
 	return ret
 }
 
@@ -24,52 +26,61 @@ func (s *Server) ListOfUntreatedPeers() map[string]*serverPeer {
 //ce sont des pairs avec qui le noeud courant a échangé sa version
 func (s *Server) ListOfTrustedPeers() map[string]*serverPeer {
 	ret := make(map[string]*serverPeer)
-
-	for addr, p := range s.peers {
+	s.peers.Range(func(key, val interface{}) bool {
+		p := val.(*serverPeer)
 		if p.IsVersionSent() == true && p.IsVerAckReceived() == true {
-			ret[addr] = p
+			ret[p.GetAddr()] = p
 		}
-	}
+		return true
+	})
+
 	return ret
 }
 
 func (s *Server) GetCloserAndSafestPeers() map[string]*serverPeer {
 	ret := make(map[string]*serverPeer)
 
-	for addr, p := range s.peers {
+	s.peers.Range(func(key, val interface{}) bool {
+		p := val.(*serverPeer)
 		if p.IsVersionSent() == true && p.IsVerAckReceived() == true {
-			ret[addr] = p
+			ret[p.GetAddr()] = p
 		}
-	}
+		return true
+	})
+
 	return ret
 }
 
-func (s *Server) GetListOfTrustedMainNode() map[string]*serverPeer{
+func (s *Server) GetListOfTrustedMainNode() map[string]*serverPeer {
 	ret := make(map[string]*serverPeer)
-	for addr, p := range s.peers {
-		na := NewNetAddressIPPort(util.StringToNetIpAndPort(addr))
+
+	s.peers.Range(func(key, val interface{}) bool {
+		p := val.(*serverPeer)
+		addr := p.GetAddr()
+		na := serverutil.NewNetAddressIPPort(util.StringToNetIpAndPort(addr))
 		na.IsEqual(GetMainNode())
 		if na.IsEqual(GetMainNode()) == true && p.IsVersionSent() == true && p.IsVerAckReceived() == true {
 			ret[addr] = p
 		}
-	}
+		return true
+	})
+
 	return ret
 }
 
 //Cette fonction est appelé dès lors que le noeud recoit une liste de nouvelles addresses
-//Pour chaque adresse recu, elle va lui envoyer un ping puis attendre un certain délais 
+//Pour chaque adresse recu, elle va lui envoyer un ping puis attendre un certain délais
 //pour la reception d'un pong provenant de ce même noeud.
 //Si elle recoit un pong dans les conf.TimeInSecondAfterPingWithoutPongToRemove seconds
 //Elle lui envoie une version du noeud.
-func (s *Server) treatPeersAfterPong(unTreatedPeers map[string]*serverPeer){
-	defer s.addrMu.Unlock()
+func (s *Server) treatPeersAfterPong(unTreatedPeers map[string]*serverPeer) {
 	//pour chaque pair non traité
 	for newPeerAddr, _ := range unTreatedPeers {
-		na := NewNetAddressIPPort(util.StringToNetIpAndPort(newPeerAddr))
+		na := serverutil.NewNetAddressIPPort(util.StringToNetIpAndPort(newPeerAddr))
 		//on envoie un ping
 		s.sendPing(na)
 	}
-	
+
 	//tant que la liste contient des pairs non traités, on boucle a l'infini
 	for len(unTreatedPeers) > 0 {
 		//pour chaque pair non traité
@@ -79,15 +90,16 @@ func (s *Server) treatPeersAfterPong(unTreatedPeers map[string]*serverPeer){
 			condition1 := ((nowUnixNano - p.GetLastPingSentTime()) / int64(time.Second)) >= conf.TimeInSecondAfterPingWithoutPongToRemove
 			condition2 := ((p.GetLastPongReceivedTime() - p.GetLastPingSentTime()) / int64(time.Second)) >= conf.TimeInSecondAfterPingWithoutPongToRemove
 			//si le ping obtient une réponse pong dans les 5 secondes suivant l'envoie du ping
-			condition3 := p.GetLastPongReceivedTime() > p.GetLastPingSentTime() && ((p.GetLastPongReceivedTime() - p.GetLastPingSentTime()) / int64(time.Second)) < conf.TimeInSecondAfterPingWithoutPongToRemove
+			condition3 := p.GetLastPongReceivedTime() > p.GetLastPingSentTime() && ((p.GetLastPongReceivedTime()-p.GetLastPingSentTime())/int64(time.Second)) < conf.TimeInSecondAfterPingWithoutPongToRemove
 			if condition1 || condition2 {
 				s.Log(true, "pong not received from", unTreatedaddr)
 				delete(unTreatedPeers, unTreatedaddr)
 			} else if condition3 {
 				//si l'on a pas déjà envoyé notre version au pair
-				if s.peers[unTreatedaddr].IsVersionSent() == false {
-					//on envoie notre version au pair 
-					s.sendVersion(NewNetAddressIPPort(util.StringToNetIpAndPort(unTreatedaddr)))
+				p, _ := s.GetPeer(unTreatedaddr)
+				if p.IsVersionSent() == false {
+					//on envoie notre version au pair
+					s.sendVersion(serverutil.NewNetAddressIPPort(util.StringToNetIpAndPort(unTreatedaddr)))
 				}
 				//on supprime le pair de la liste des pairs non traités
 				delete(unTreatedPeers, unTreatedaddr)
@@ -101,17 +113,14 @@ func (s *Server) treatPeersAfterPong(unTreatedPeers map[string]*serverPeer){
 /*IMPROVE_LATER*/
 //kind :
 //getblock
-func (s *Server) SelectPerfectPeer(kind string) *serverPeer {
-	
-	switch(kind){
-
-		case "getblock":
-			peers := s.peers.GetPeersBasedOnHeight(s.chain.Height + 1)
-			for _, p := range peers {
-				return p
-			}
-		default:
-			return nil
+func (s *Server) SelectPerfectPeers(kind string) []*serverPeer {
+	switch kind {
+	case "getblock":
+		peers := s.syncMapToListOfPeers(s.peers).GetPeersBasedOnHeight(s.chain.Height + 1).ListOfPeersToSlice()
+		peers.SortByBytesReceived(false)
+		return peers
+	default:
+		return nil
 	}
-	return nil	
+	return nil
 }

@@ -1,27 +1,18 @@
 package server
 
 import (
-	"log"
-	"fmt"
 	"encoding/hex"
+	"fmt"
+	"log"
 	"time"
+	"tway/serverutil"
 )
 
-type MsgGetData struct {
-	// Address of the local peer.
-	AddrSender *NetAddress
-	// Address of the local peer.
-	AddrReceiver *NetAddress
-
-	ID 			[]byte //hash du block ou de la tx
-	Kind 		string //"block" ou "tx"
+func (s *Server) NewMsgGetData(addrTo *serverutil.NetAddress, ID []byte, kind string) *serverutil.MsgGetData {
+	return &serverutil.MsgGetData{s.ipStatus, addrTo, ID, kind}
 }
 
-func (s *Server) NewMsgGetData(addrTo *NetAddress, ID []byte, kind string) *MsgGetData {
-	return &MsgGetData{s.ipStatus, addrTo, ID, kind}
-}
-
-func (s *Server) sendGetData(addrTo *NetAddress, ID []byte, kind string) ([]byte, error) {
+func (s *Server) sendGetData(addrTo *serverutil.NetAddress, ID []byte, kind string) ([]byte, error) {
 	s.Log(true, fmt.Sprintf("GetData kind: %s, with ID:%s sent to %s", kind, hex.EncodeToString(ID), addrTo.String()))
 	//assigne en []byte la structure getblocks
 	payload := gobEncode(*s.NewMsgGetData(addrTo, ID, kind))
@@ -30,16 +21,18 @@ func (s *Server) sendGetData(addrTo *NetAddress, ID []byte, kind string) ([]byte
 	return request, s.sendData(addrTo.String(), request)
 }
 
-//Receptionne une demande de block ou de transaction 
+//Receptionne une demande de block ou de transaction
 func (s *Server) handleGetData(request []byte) {
-	var payload MsgGetData
+	var payload serverutil.MsgGetData
 	if err := getPayload(request, &payload); err != nil {
 		log.Panic(err)
 	}
 	addr := payload.AddrSender.String()
-	s.peers[addr].IncreaseBytesReceived(uint64(len(request)))
+	p, _ := s.GetPeer(addr)
+	p.IncreaseBytesReceived(uint64(len(request)))
+	s.AddPeer(p)
 	s.Log(true, fmt.Sprintf("GetData kind: %s, with ID:%s received from %s", payload.Kind, hex.EncodeToString(payload.ID), addr))
-	
+
 	if payload.Kind == "block" {
 		//block
 		//on recupère le block si il existe
@@ -49,7 +42,7 @@ func (s *Server) handleGetData(request []byte) {
 			s.sendBlock(payload.AddrSender, block)
 		} else {
 			fmt.Println("block is nil :( handleGetData")
-			go func(){
+			go func() {
 				for {
 					time.Sleep(time.Millisecond * 50)
 					block, _ := s.chain.GetBlockByHash(payload.ID)
@@ -59,7 +52,6 @@ func (s *Server) handleGetData(request []byte) {
 				}
 			}()
 		}
-
 	} else {
 		//tx
 	}
