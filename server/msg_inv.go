@@ -4,12 +4,27 @@ import (
 	"encoding/hex"
 	"log"
 	conf "tway/config"
+	"tway/mempool"
 	"tway/server/peerhistory"
 	"tway/serverutil"
 	"tway/util"
 )
 
-func (s *Server) rangeTxList(data [][]byte) {
+func (s *Server) rangeTxList(addrTo *serverutil.NetAddress, data [][]byte) {
+
+	var indexToAsk []int
+	for idx, item := range data {
+		if mempool.Mempool.StartDownloadTx(item) == nil {
+			indexToAsk = append(indexToAsk, idx)
+		}
+	}
+
+	for _, idx := range indexToAsk {
+		_, err := s.sendGetData(addrTo, data[idx], "tx")
+		if err != nil {
+			mempool.Mempool.RemoveDownloadInformation(data[idx])
+		}
+	}
 }
 
 //parcours une liste hash de block suite a une requete handleInv
@@ -97,6 +112,6 @@ func (s *Server) handleInv(request []byte) {
 		}
 		s.rangeBlockList(payload.AddrSender, payload.List, p, heightExpectedOfFirstElem)
 	} else {
-		s.rangeTxList(payload.List)
+		s.rangeTxList(payload.AddrSender, payload.List)
 	}
 }

@@ -1,5 +1,7 @@
 package serverutil
 
+import "fmt"
+
 type MsgAskBlocks struct {
 	// Address of the local peer.
 	Addr  *NetAddress
@@ -13,4 +15,8 @@ type MsgBlock struct {
 	AddrReceiver *NetAddress
 
 	Data []byte
+}
+
+func (mab *MsgAskBlocks) String() string {
+	return fmt.Sprintf("{Addr: %s, Range: [%d:%d]}", mab.Addr.String(), mab.Range[0], mab.Range[1])
 }

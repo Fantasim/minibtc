@@ -1,17 +1,18 @@
 package config
 
 import (
-	"os"
 	"fmt"
+	"os"
+	"tway/util"
 )
 
 var (
 	//HashPrevBlock du block genèse
-	GENESIS_BLOCK_PREVHASH = []byte{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+	GENESIS_BLOCK_PREVHASH = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	//Identifiant du noeud
 	NODE_ID string
 	//Path vers le fichier DB
-	DB_FILE = "/Users/fantasim/go/src/tway/assets/db/"
+	DB_FILE     = "/Users/fantasim/go/src/tway/assets/db/"
 	WALLET_FILE = "/Users/fantasim/go/src/tway/assets/wallet/"
 )
 
@@ -23,11 +24,11 @@ const (
 	//Version du client
 	VERSION = byte(0x00)
 
-	NEW_DIFFICULTY_EACH_N_BLOCK = 5
-	TARGET_TIME_BETWEEN_TWO_BLOCKS = 20 //20 seconds 
+	NEW_DIFFICULTY_EACH_N_BLOCK    = 5
+	TARGET_TIME_BETWEEN_TWO_BLOCKS = 20 //20 seconds
 )
 
-func InitPKG(){
+func InitPKG() {
 	NODE_ID = os.Getenv("NODE_ID")
 	//Si la variable d'environnement NODE_ID est bien set
 	if NODE_ID == "" {
@@ -36,4 +37,11 @@ func InitPKG(){
 	}
 	DB_FILE += NODE_ID
 	WALLET_FILE += NODE_ID
+	ip, err := util.GetIP()
+	if err != nil {
+		fmt.Printf(err.Error())
+		os.Exit(2)
+	}
+	MainNodeIP = ip
+
 }

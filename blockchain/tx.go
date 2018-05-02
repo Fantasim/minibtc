@@ -1,13 +1,13 @@
 package blockchain
 
 import (
-	"tway/twayutil"
 	"bytes"
-	"tway/util"
 	"encoding/hex"
-	s "tway/script"
 	"errors"
-	conf "tway/config"
+	"fmt"
+	s "tway/script"
+	"tway/twayutil"
+	"tway/util"
 )
 
 //Cette fonction verifie chaque input de la transaction
@@ -15,6 +15,10 @@ import (
 func CheckIfTxIsCorrect(tx *twayutil.Transaction) error {
 	if tx.IsCoinbase() == true {
 		return nil
+	}
+
+	if err := CheckIfTxPutsAreCorrect(tx); err != nil {
+		return err
 	}
 
 	//on recupere la liste des transactions ayant permis
@@ -32,13 +36,13 @@ func CheckIfTxIsCorrect(tx *twayutil.Transaction) error {
 		//on recupère le script pubkey de la tx precente lié a cet input
 		scriptPubKey := prevTXs[prevHash].Outputs[vout].ScriptPubKey
 		scriptSig := in.ScriptSig
-		
-		//ScriptSig + ScriptPubKey 
-		scriptToRun := append(scriptSig, scriptPubKey...) 
-		//si le script n'est pas de type PubKeyHash 
-		if s.Script.IsPayToPubKeyHash(scriptToRun) == false {
+
+		//ScriptSig + ScriptPubKey
+		scriptToRun := append(scriptSig, scriptPubKey...)
+		//si le script n'est pas de type PubKeyHash
+		/*if s.Script.IsPayToPubKeyHash(scriptToRun) == false {
 			return errors.New(WRONG_SCRIPT)
-		}
+		}*/
 		//pour des raisons de fonctionnalités avec pkg on convertit le type twayutil.Transaction en type util.Transaction
 		prevTXsUtil := make(map[string]*util.Transaction)
 		for hash, tx := range prevTXs {
@@ -58,21 +62,26 @@ func CheckIfTxIsCorrect(tx *twayutil.Transaction) error {
 	return nil
 }
 
-func CheckIfInputIsAnUTXO(in *twayutil.Input, prevTX *twayutil.Transaction) error {
-	vout := util.DecodeInt(in.Vout)
-	scriptPubKey := prevTX.Outputs[vout].ScriptPubKey
-
-	pubKeyHash, err := s.Script.GetPubKeyHash(scriptPubKey)
-	if err != nil {
-		return err
-	}
-	_, unpentOutputs := UTXO.GetUnspentOutputsByPubKeyHash(pubKeyHash, conf.MAX_COIN)
-	for _, UOutput := range unpentOutputs {
-		if bytes.Compare(UOutput.TxID, prevTX.GetHash()) == 0 && util.DecodeInt(in.Vout) == UOutput.Idx{
-			return nil
+//Verifie que le montant total amassé par les inputs est egal
+//au montant total des outputs + frais de transaction
+func CheckIfTxPutsAreCorrect(tx *twayutil.Transaction) error {
+	if tx.IsCoinbase() == false {
+		total_inputs, total_outputs, fees := GetAmounts(tx)
+		if total_inputs != (total_outputs + fees) {
+			return errors.New(WRONG_BLOCK_PUTS_VALUE)
 		}
 	}
-	return errors.New(NOT_FOUND)
+	return nil
+}
+
+//Cette fonction verifie que l'output lié à l'input est un UTXO
+func CheckIfInputIsAnUTXO(in *twayutil.Input, prevTX *twayutil.Transaction) error {
+	vout := util.DecodeInt(in.Vout)
+	unspentOutput := UTXO.GetUnSpentOutputByVoutAndTxHash(vout, prevTX.GetHash())
+	if unspentOutput == nil {
+		return errors.New(NOT_FOUND)
+	}
+	return nil
 }
 
 //Récupère une transaction par son hash, avec le block dans lequel
@@ -92,12 +101,18 @@ func GetTxByHash(hash []byte) (*twayutil.Transaction, *twayutil.Block, int) {
 	return nil, nil, -1
 }
 
+//Récupère la liste des transactions ayant permis la création de la totalité
+//des inputs présents dans la transaction
 func GetPrevTxs(tx *twayutil.Transaction) map[string]*twayutil.Transaction {
 	prevTXs := make(map[string]*twayutil.Transaction)
 
 	for _, in := range tx.Inputs {
-		prevTx, _, _ := GetTxByHash(in.PrevTransactionHash)
-		prevTXs[hex.EncodeToString(in.PrevTransactionHash)] = prevTx
+		prevTx, _, h := GetTxByHash(in.PrevTransactionHash)
+		if h > -1 {
+			prevTXs[hex.EncodeToString(in.PrevTransactionHash)] = prevTx
+		} else {
+			fmt.Println("error in GetPrevTxs")
+		}
 	}
 	return prevTXs
 }
@@ -120,7 +135,12 @@ func GetAmountsInput(tx *twayutil.Transaction) int {
 	//Pour chaque input de la tx
 	for _, in := range tx.Inputs {
 		//on recupere la transaction précédante de l'input
-		prevTx, _, _ := GetTxByHash(in.PrevTransactionHash)
+		fmt.Println()
+		prevTx, _, h := GetTxByHash(in.PrevTransactionHash)
+		if h == -1 {
+			fmt.Println("ERROR IN GetAmountsInput")
+			return 0
+		}
 		//on récupère l'output ayant permis la création de l'input
 		out := prevTx.Outputs[(util.DecodeInt(in.Vout))]
 		//on ajoute le montant au montant total assemblés par les inputs
@@ -143,4 +163,3 @@ func GetAmounts(tx *twayutil.Transaction) (int, int, int) {
 
 	return total_inputs, total_outputs, total_inputs - total_outputs
 }
-

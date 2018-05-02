@@ -14,6 +14,7 @@ func (cli *CLI) printUsage() {
 	fmt.Println(" block \t Manage block")
 	fmt.Println(" blockchain \t Manage blockchain")
 	fmt.Println(" blockchain_print \t Print blockchain")
+	fmt.Println(" input \t Manage input")
 	fmt.Println(" server \t Manage server")
 	fmt.Println(" tx \t Manage transactions")
 	fmt.Println(" tx_create \t Create transaction")
@@ -30,39 +31,42 @@ func (cli *CLI) validateArgs() {
 }
 
 //Demarre le cli
-func Start(){
+func Start() {
 	cli := new(CLI)
 	cli.validateArgs()
 	cli.listMenu()
 }
 
 //la liste des commandes
-func (cli *CLI) listMenu(){
+func (cli *CLI) listMenu() {
 	switch os.Args[1] {
-		case "block":
-			BlockPrintCli()
+	case "block":
+		BlockPrintCli()
 
-		case "blockchain":
-			blockchainCli()
+	case "blockchain":
+		blockchainCli()
 
-		case "blockchain_print":
-			BlockchainPrintCli()
+	case "blockchain_print":
+		BlockchainPrintCli()
 
-		case "server":
-			serverCli()
+	case "input":
+		inputCli()
 
-		case "tx":
-			TxPrintCli()
+	case "server":
+		serverCli()
 
-		case "tx_create":
-			TxCreateCli()
+	case "tx":
+		TxPrintCli()
 
-		case "wallet":
-			walletCli()
+	case "tx_create":
+		TxCreateCli()
 
-		case "utxo":
-			UTXOCli()
-		default: 
-			cli.printUsage()
+	case "wallet":
+		walletCli()
+
+	case "utxo":
+		UTXOCli()
+	default:
+		cli.printUsage()
 	}
 }

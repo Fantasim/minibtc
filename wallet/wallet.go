@@ -1,23 +1,23 @@
 package wallet
 
 import (
-	"crypto/ecdsa"
-	"tway/util"
-	"os"
-	"fmt"
 	"bytes"
+	"crypto/ecdsa"
+	"fmt"
+	"os"
+	"tway/util"
 )
 
 const (
-	Version = byte(0x00)
+	Version            = byte(0x00)
 	AddressChecksumLen = 4 //checksumlen du Bitcoin
 )
 
 var (
-	WalletList map[string]*Wallet
-	NODE_ID string
+	WalletList  map[string]*Wallet
+	NODE_ID     string
 	WALLET_FILE = "/Users/fantasim/go/src/tway/assets/dat/"
-	Walletinfo *WalletInfo
+	Walletinfo  *WalletInfo
 )
 
 type Wallet struct {
@@ -25,7 +25,7 @@ type Wallet struct {
 	PublicKey  []byte
 }
 
-func InitPKG(){
+func InitPKG() {
 	NODE_ID = os.Getenv("NODE_ID")
 	if NODE_ID == "" {
 		fmt.Printf("Vous devez créer une variable d'environnement correspondant à l'ID de votre noeud.\nExemple : `export NODE_ID=10000`\n\n")
@@ -38,7 +38,7 @@ func InitPKG(){
 }
 
 //Gènere un nouveau wallet
-//Ajoute le wallet dans le fichier de stockage wallet du noeud 
+//Ajoute le wallet dans le fichier de stockage wallet du noeud
 //PWD = WalletFile + NODE_ID.dat
 func GenerateWallet() string {
 	w := NewWallet()
@@ -58,6 +58,7 @@ func NewWallet() *Wallet {
 }
 
 func NewMiningWallet() []byte {
+	Walletinfo = GetWalletInfo()
 	for _, ws := range Walletinfo.Ws {
 		if ws.Amount == 0 {
 			return ws.W.PublicKey
@@ -96,11 +97,20 @@ func GetWalletByPubKeyHash(pubKeyHash []byte) *Wallet {
 	return nil
 }
 
-
 func GetPubKeyHashFromAddress(address []byte) []byte {
 	pubKeyHash := util.Base58Decode(address)
 	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-AddressChecksumLen]
 	return pubKeyHash
+}
+
+func GetAddressFromPubKeyHash(pubkeyHash []byte) []byte {
+	versionedPayload := append([]byte{Version}, pubkeyHash...)
+	checksum := checksum(versionedPayload)
+
+	fullPayload := append(versionedPayload, checksum...)
+	address := util.Base58Encode(fullPayload)
+
+	return address
 }
 
 //Recupere le checksum d'une clé publique (processus utilisé par le BTC)
@@ -114,4 +124,3 @@ func checksum(payload []byte) []byte {
 func HashPubKey(pubKey []byte) []byte {
 	return util.Ripemd160(util.Sha256(pubKey))
 }
-

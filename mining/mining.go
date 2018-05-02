@@ -1,43 +1,43 @@
 package mining
 
 import (
-	b "tway/blockchain"
-	"tway/twayutil"
-	"tway/wallet"
-	"tway/util"
-	"math/big"
-	"time"
-	"fmt"
-	"encoding/hex"
-	"math"
 	"bytes"
+	"encoding/hex"
+	"fmt"
+	"math"
+	"math/big"
 	"sync"
+	"time"
+	b "tway/blockchain"
+	"tway/mempool"
+	"tway/twayutil"
+	"tway/util"
+	"tway/wallet"
 )
 
-var mempool []twayutil.Transaction
 const maxNonce = math.MaxInt64
 
 type MiningManager struct {
-	NewBlock 		chan *twayutil.Block
-	is_mining 		bool
-	start			time.Time
-	tip				[]byte
-	quit 			chan int
-	log				bool
-	chain 			*b.Blockchain	
+	NewBlock  chan *twayutil.Block
+	is_mining bool
+	start     time.Time
+	tip       []byte
+	quit      chan int
+	log       bool
+	chain     *b.Blockchain
 
-	mu 				sync.Mutex
-	HistoryMined 	map[string]*twayutil.Block	
+	mu           sync.Mutex
+	HistoryMined map[string]*twayutil.Block
 }
 
 func NewMiningManager(tip []byte, log bool, chain *b.Blockchain) *MiningManager {
 	return &MiningManager{
-		NewBlock: make(chan *twayutil.Block),
+		NewBlock:     make(chan *twayutil.Block),
 		HistoryMined: make(map[string]*twayutil.Block),
-		tip: tip,
-		quit: make(chan int),
-		log: log,
-		chain: chain,
+		tip:          tip,
+		quit:         make(chan int),
+		log:          log,
+		chain:        chain,
 	}
 }
 
@@ -45,17 +45,17 @@ func (mm *MiningManager) IsMining() bool {
 	return mm.is_mining
 }
 
-func (mm *MiningManager) UpdateTip(newTip []byte){
+func (mm *MiningManager) UpdateTip(newTip []byte) {
 	mm.tip = newTip
 }
 
-func (mm *MiningManager) run(pow *b.Pow, newBlock chan *twayutil.Block, quit chan int){
+func (mm *MiningManager) run(pow *b.Pow, newBlock chan *twayutil.Block, quit chan int) {
 	var hashInt big.Int
 	var hash []byte
 	nonce := 0
 	var stopMining = false
 
-	go func(){
+	go func() {
 		for nonce < maxNonce {
 			data := pow.PrepareData(util.EncodeInt(nonce))
 			hash = util.Sha256(data)
@@ -64,7 +64,7 @@ func (mm *MiningManager) run(pow *b.Pow, newBlock chan *twayutil.Block, quit cha
 				pow.Block.Header.Nonce = util.EncodeInt(nonce)
 				pow.Block.Size = util.EncodeInt(int(pow.Block.GetSize()))
 
-				go func(){
+				go func() {
 					//signal au serveur qu'un nouveau block a été miné
 					//le serveur traitera le block via le block manager
 					//et informera le mining manager qu'un nouveau block a été ajouté à la chain
@@ -76,62 +76,69 @@ func (mm *MiningManager) run(pow *b.Pow, newBlock chan *twayutil.Block, quit cha
 				return
 			}
 			if stopMining == true {
-				return 
+				return
 			}
 			nonce++
 		}
 	}()
 	for {
 		select {
-			case new := <-newBlock:
-				if bytes.Compare(pow.Block.Header.HashPrevBlock, new.Header.HashPrevBlock) == 0 {
-					stopMining = true
-					mm.tip = new.GetHash()
-					return
-				}
-			case <-mm.quit:
-				quit <- 1
+		case new := <-newBlock:
+			if bytes.Compare(pow.Block.Header.HashPrevBlock, new.Header.HashPrevBlock) == 0 {
+				mempool.Mempool.RemoveTxListIfExist(new.Transactions)
 				stopMining = true
+				mm.tip = new.GetHash()
 				return
+			}
+		case <-mm.quit:
+			quit <- 1
+			stopMining = true
+			return
 		}
 	}
 }
 
-func (mm *MiningManager) StartMining(newBlock chan *twayutil.Block, tip []byte){
+func (mm *MiningManager) StartMining(newBlock chan *twayutil.Block, tip []byte) {
 	if mm.is_mining == true {
 		return
-	}	
+	}
 	mm.is_mining = true
 	quit := make(chan int)
 	var stop = false
-	go func(){
+	go func() {
 		<-quit
 		stop = true
 	}()
 	mm.Log(false, "started")
 	for stop == false {
-		txs := mempool
+		var txs []twayutil.Transaction
+		for len(txs) == 0 {
+			txs = mempool.Mempool.PoolToTxSlice()
+			time.Sleep(time.Second * 1)
+		}
 		_, _, fees := b.GetTotalAmounts(txs)
 		time.Sleep(100 * time.Millisecond)
 		block := twayutil.NewBlock(txs, mm.tip, wallet.NewMiningWallet(), fees, mm.chain.GetNewBits())
 		//Créer une target de proof of work
 		pow := b.NewProofOfWork(block)
-		mm.run(pow, newBlock, quit)	
+		mm.Log(true, "New block with", len(txs), "transactions in mempool is about to be mined")
+		//lance le minage du block
+		mm.run(pow, newBlock, quit)
 	}
 	mm.Log(false, "stopped")
 	mm.is_mining = false
 }
 
-func (mm *MiningManager) Stop(){
+func (mm *MiningManager) Stop() {
 	mm.quit <- 1
 }
 
-func (mm *MiningManager) Log(printTime bool, c... interface{}){
+func (mm *MiningManager) Log(printTime bool, c ...interface{}) {
 	if mm.log == false {
-		return 
+		return
 	}
 	fmt.Print("Mining: ")
-	if (mm.log == true){
+	if mm.log == true {
 		if printTime == true {
 			fmt.Print(time.Now().Format("15:04:05.000000"))
 			fmt.Print(" ")
@@ -152,7 +159,7 @@ func (mm *MiningManager) AddToHistoryMined(newBlock *twayutil.Block) {
 	mm.HistoryMined[hash] = newBlock
 }
 
-func (mm *MiningManager) GetBlockInHistory(hash []byte) *twayutil.Block{
+func (mm *MiningManager) GetBlockInHistory(hash []byte) *twayutil.Block {
 	mm.mu.Lock()
 	defer mm.mu.Unlock()
 

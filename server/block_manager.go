@@ -11,10 +11,13 @@ import (
 	"tway/twayutil"
 )
 
+type listDownloadInformation []DownloadInformations
+
 type DownloadInformations struct {
 	sp               *serverPeer
 	start            int64           //ns
 	receivedAt       int64           //ns
+	addedAt          int64           //ns
 	expectedHeight   int64           //expected height for this block
 	block            *twayutil.Block //==nil if block hasn't been still downloaded
 	unConfirmedBlock *twayutil.Block
@@ -72,6 +75,10 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server) {
 		return
 	}
 
+	if bm.download[hash].receivedAt == 0 {
+		bm.download[hash].receivedAt = time.Now().UnixNano()
+	}
+
 	//on recupere le dernier block de la chain
 	lastChainBlock := bm.chain.GetLastBlock()
 
@@ -93,12 +100,14 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server) {
 		//nouvelle date = date actuel + temps moyen pour dl un block
 		bm.download[hash].nbTry += 1
 		bm.download[hash].timeToRetry = time.Now().Add(time.Nanosecond * time.Duration(averageTimeToDownloadBlock)).UnixNano()
-		go func() {
-			//on sleep dans une goroutine en attendant le nouvel essai
-			time.Sleep(time.Nanosecond * time.Duration(averageTimeToDownloadBlock))
-			bm.BlockDownloaded(new, s)
-		}()
-		go bm.ReindexChain()
+		cleared := bm.ClearPendingBlockIfNecessary(hash)
+		if cleared == false {
+			go func() {
+				//on sleep dans une goroutine en attendant le nouvel essai
+				time.Sleep(time.Nanosecond * time.Duration(averageTimeToDownloadBlock))
+				bm.BlockDownloaded(new, s)
+			}()
+		}
 		return
 	}
 
@@ -128,7 +137,7 @@ func (bm *blockManager) BlockDownloaded(new *twayutil.Block, s *Server) {
 
 		bm.Log(true, fmt.Sprintf("block %d - %s successfully added on chain\n", bm.chain.Height, hash))
 		bm.download[hash].block = new
-		bm.download[hash].receivedAt = time.Now().UnixNano()
+		bm.download[hash].addedAt = time.Now().UnixNano()
 	} else {
 		bm.Log(true, fmt.Sprintf("block %s hasn't been added on chain next to this error: %s\n", hash, err.Error()))
 		delete(bm.download, hash)
@@ -193,54 +202,29 @@ func (bm *blockManager) IsContainOrphanBlock() bool {
 	return false
 }
 
-func (bm *blockManager) GetUncomfirmedBlocks() []*twayutil.Block {
-	ret := make([]*twayutil.Block, 0)
+func (bm *blockManager) GetUncomfirmedBlocks() listDownloadInformation {
+	var ret listDownloadInformation
 	bm.mu.Lock()
 	cpy := bm.download
 	bm.mu.Unlock()
 	for _, d := range cpy {
 		if d.block == nil && d.unConfirmedBlock != nil {
-			ret = append(ret, d.unConfirmedBlock)
+			ret = append(ret, *d)
 		}
 	}
 	return ret
 }
 
-func (bm *blockManager) GetLonguestChainHash() [][]byte {
-	var longuestChainHash [][]byte
-
-	unConfirmedBlocks := bm.GetUncomfirmedBlocks()
-	fmt.Println("unConfirmedBlocks nb:", len(unConfirmedBlocks))
-	/*for i := 0; i < len(unConfirmedBlocks); i++ {
-
-		var tmp [][]byte
-		for index, unConfirmed := range unConfirmedBlocks {
-			if index == 0 {
-				tmp = append(tmp, unConfirmed.GetHash())
-			} else {
-				if bytes.Compare(unConfirmed.Header.HashPrevBlock, tmp[len(tmp)-1]) == 0 {
-					tmp = append(tmp, unConfirmed.GetHash())
-				}
-			}
-		}
-		if len(tmp) > len(longuestChainHash) {
-			longuestChainHash = tmp
-		}
-	}*/
-	for _, unConfirmedBlock := range unConfirmedBlocks {
-		fmt.Println("hash:", hex.EncodeToString(unConfirmedBlock.GetHash()))
-		fmt.Println("prev:", hex.EncodeToString(unConfirmedBlock.Header.HashPrevBlock))
-		fmt.Println()
+func (bm *blockManager) ClearPendingBlockIfNecessary(hash string) bool {
+	di, exist := bm.download[hash]
+	if exist == false {
+		return false
 	}
-	fmt.Println()
-	return longuestChainHash
-}
-
-func (bm *blockManager) ReindexChain() {
-	if bm.IsContainOrphanBlock() {
-		bm.orphanMu.Lock()
-		pendingBlockchain := bm.GetLonguestChainHash()
-		fmt.Println("pendingBlockchain length:", len(pendingBlockchain))
-		bm.orphanMu.Unlock()
+	twoMinutesBack := time.Now().Add(time.Minute * -2)
+	unconfirmReceivedAt := time.Unix(0, di.receivedAt)
+	if unconfirmReceivedAt.Before(twoMinutesBack) {
+		delete(bm.download, hash)
+		return true
 	}
+	return false
 }

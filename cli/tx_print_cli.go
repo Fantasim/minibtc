@@ -1,22 +1,29 @@
 package cli
 
-import ( 
-	"fmt"
-	"tway/util"
-	"tway/twayutil"
-	"tway/script"
-	b "tway/blockchain"
-	"flag"
+import (
+	"crypto/ecdsa"
+	"crypto/rand"
 	"encoding/hex"
+	"flag"
+	"fmt"
+	"log"
+	b "tway/blockchain"
+	"tway/script"
+	"tway/twayutil"
+	"tway/util"
+	"tway/wallet"
 )
 
-func TxCreateUsage(){
+func TxPrintUsage() {
 	fmt.Println(" Options:")
-	fmt.Println(" --to \t address to send")
-	fmt.Println(" --amount \t amount to send")
+	fmt.Println(" --hash \t Print tx equal to hash")
+	fmt.Println(" --sign \t	sign a transaction")
+	fmt.Println(" --address \t select a wallet linked with this address")
+	fmt.Println("Others cmds starting by tx :")
+	fmt.Println("\t tx_reate")
 }
 
-func printTxBlockchain(tx *twayutil.Transaction, block *twayutil.Block, height int){
+func printTxBlockchain(tx *twayutil.Transaction, block *twayutil.Block, height int) {
 	fmt.Printf("Block height: %d\n", height)
 	fmt.Printf("Block hash: %x\n\n", block.GetHash())
 	fmt.Printf("== TX %x ==\n", tx.GetHash())
@@ -38,7 +45,7 @@ func printTxBlockchain(tx *twayutil.Transaction, block *twayutil.Block, height i
 	}
 }
 
-func printTx(tx *twayutil.Transaction){
+func printTx(tx *twayutil.Transaction) {
 	fmt.Printf("== TX %x ==\n", tx.GetHash())
 	fmt.Printf("    Coinbase: %t\n", tx.IsCoinbase())
 	fmt.Printf("    Version: %x\n", tx.Version)
@@ -58,16 +65,17 @@ func printTx(tx *twayutil.Transaction){
 	}
 }
 
-func printTxBasic(tx *twayutil.Transaction){
+func printTxBasic(tx *twayutil.Transaction) {
 	fmt.Printf("== TX %x ==\n", tx.GetHash())
 	fmt.Printf("    Coinbase: %t\n", tx.IsCoinbase())
 	fmt.Printf("    Value %d\n\n", tx.GetValue())
 }
 
-
-func TxPrintCli(){
+func TxPrintCli() {
 	TxCMD := flag.NewFlagSet("tx", flag.ExitOnError)
 	hash := TxCMD.String("hash", "", "Print tx if exist")
+	sign := TxCMD.String("sign", "", "Sign a transaction by its txid")
+	address := TxCMD.String("address", "", "Select a wallet linked by address")
 	handleParsingError(TxCMD)
 
 	if *hash != "" {
@@ -76,6 +84,19 @@ func TxPrintCli(){
 		if height != -1 {
 			printTxBlockchain(tx, block, height)
 		}
+	} else if *sign != "" && *address != "" {
+		h, _ := hex.DecodeString(*sign)
+		tx, _, _ := b.GetTxByHash(h)
+		w := wallet.WalletList[*address]
+		r, s, err := ecdsa.Sign(rand.Reader, &w.PrivateKey, tx.ToTxUtil().Serialize())
+		if err != nil {
+			fmt.Println(err)
+			log.Panic(err)
+		}
+
+		signature := append(r.Bytes(), s.Bytes()...)
+		fmt.Println("signature:", hex.EncodeToString(signature))
+
 	} else {
 		TxPrintUsage()
 	}

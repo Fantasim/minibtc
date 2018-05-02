@@ -10,6 +10,7 @@ import (
 	"time"
 	b "tway/blockchain"
 	conf "tway/config"
+	mempool "tway/mempool"
 	mine "tway/mining"
 	peerhistory "tway/server/peerhistory"
 	"tway/serverutil"
@@ -30,6 +31,7 @@ type Server struct {
 	MiningManager    *mine.MiningManager
 	BlockManager     *blockManager
 	HistoryManager   *peerhistory.HistoryManager
+	Mempool          *mempool.TxPool
 	newBlock         chan *twayutil.Block
 	mu               sync.Mutex
 	addrMu           sync.Mutex
@@ -45,7 +47,8 @@ func NewServer(logServer bool, mining bool, logMining bool) *Server {
 		peers:          sync.Map{},
 		MiningManager:  mine.NewMiningManager(b.BC.Tip, logMining, b.BC),
 		BlockManager:   NewBlockManager(logServer, mining),
-		HistoryManager: peerhistory.NewHistoryManager(),
+		HistoryManager: peerhistory.NewHistoryManager(true),
+		Mempool:        mempool.Mempool,
 		chain:          &*b.BC,
 		mining:         mining,
 		newBlock:       make(chan *twayutil.Block),
@@ -69,13 +72,19 @@ func (s *Server) Log(printTime bool, c ...interface{}) {
 
 //Ajoute un nouveau pair
 func (s *Server) AddPeer(sp *serverPeer) {
+	sp.RequestReceived()
 	s.peers.Store(sp.GetAddr(), sp)
 }
 
 func (s *Server) GetPeer(addr string) (*serverPeer, bool) {
 	val, exist := s.peers.Load(addr)
 	if exist == false {
-		newP := NewServerPeer(addr)
+		na, err := serverutil.NewNetAddressByString(addr)
+		if err != nil {
+			fmt.Println("ERROR IN GetPeer from serverutil.NewNetAddressByString(addr)")
+			return nil, exist
+		}
+		newP := NewServerPeer(na)
 		s.peers.Store(addr, newP)
 		return newP, exist
 	}
@@ -125,7 +134,12 @@ func (s *Server) StartServer() {
 	if s.ipStatus.IsEqual(GetMainNode()) == false {
 		go func() {
 			addr := GetMainNode().String()
-			s.AddPeer(NewServerPeer(addr))
+			na, err := serverutil.NewNetAddressByString(addr)
+			if err != nil {
+				fmt.Println("error from NewNetAddressByString in StartServer")
+				return
+			}
+			s.AddPeer(NewServerPeer(na))
 			//on envoie notre version de la blockchain au noeud principale
 			s.sendVersion(GetMainNode())
 		}()

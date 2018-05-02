@@ -1,17 +1,17 @@
 package twayutil
 
 import (
-	"tway/util"
-	"tway/script"
- 	conf "tway/config"
 	"bytes"
-	"encoding/gob"
 	"crypto/ecdsa"
 	"crypto/rand"
-	"log"
-	"fmt"
+	"encoding/gob"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"log"
+	conf "tway/config"
+	"tway/script"
+	"tway/util"
 )
 
 type TxInputs struct {
@@ -20,18 +20,18 @@ type TxInputs struct {
 
 type Input struct {
 	PrevTransactionHash []byte //[32]
-	Vout []byte //[4]
-	TxInScriptLen []byte //[1-9]
-	ScriptSig [][]byte 
+	Vout                []byte //[4]
+	TxInScriptLen       []byte //[1-9]
+	ScriptSig           [][]byte
 }
 
 //Retourne un nouvel input de tx
 func NewTxInput(prevTransactionHash []byte, vout []byte, scriptSig [][]byte) Input {
 	in := Input{
 		PrevTransactionHash: prevTransactionHash,
-		Vout: vout,
-		TxInScriptLen: util.EncodeInt(util.LenDoubleSliceByte(scriptSig)),
-		ScriptSig: scriptSig,
+		Vout:                vout,
+		TxInScriptLen:       util.EncodeInt(util.LenDoubleSliceByte(scriptSig)),
+		ScriptSig:           scriptSig,
 	}
 	return in
 }
@@ -40,19 +40,47 @@ func (in *Input) GetSize() uint64 {
 	return 0
 }
 
+//Transaction -> []byte
+func (in *Input) Serialize() []byte {
+	b, err := json.Marshal(&in)
+	if err != nil {
+		log.Panic(err)
+	}
+	bu := new(bytes.Buffer)
+	enc := gob.NewEncoder(bu)
+	err = enc.Encode(b)
+	if err != nil {
+		log.Panic(err)
+	}
+	return bu.Bytes()
+}
+
+func DeserializeInput(data []byte) *Input {
+	var in *Input
+	var dataByte []byte
+
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+	err := decoder.Decode(&dataByte)
+	if err != nil {
+		log.Panic(err)
+	}
+	json.Unmarshal(dataByte, &in)
+	return in
+}
+
 func (in *Input) ToInputUtil() *util.Input {
 	return &util.Input{
 		PrevTransactionHash: in.PrevTransactionHash,
-		ScriptSig: in.ScriptSig,
-		TxInScriptLen: in.TxInScriptLen,
-		Vout: in.Vout,
+		ScriptSig:           in.ScriptSig,
+		TxInScriptLen:       in.TxInScriptLen,
+		Vout:                in.Vout,
 	}
 }
 
 type Output struct {
-	Value []byte //[1-8]
+	Value          []byte //[1-8]
 	TxScriptLength []byte //[1-9]
-	ScriptPubKey [][]byte
+	ScriptPubKey   [][]byte
 }
 
 type TxOutputs struct {
@@ -62,42 +90,33 @@ type TxOutputs struct {
 //Retourne un nouvel output de tx
 func NewTxOutput(scriptPubKey [][]byte, value int) Output {
 	txo := Output{
-		Value: util.EncodeInt(value),
+		Value:          util.EncodeInt(value),
 		TxScriptLength: util.EncodeInt(util.LenDoubleSliceByte(scriptPubKey)),
-		ScriptPubKey: scriptPubKey,
+		ScriptPubKey:   scriptPubKey,
 	}
 	return txo
 }
 
 //Si l'output a été locké avec pubKeyHash
-func (output *Output) IsLockedWithPubKeyHash(pubKeyHash []byte) bool {
-	//on génère un scriptPubKey de type Pay-to-PubkeyHash
-	//avec la clé public hashée passée en paramètre
-	scriptPubKey := script.Script.LockingScript(pubKeyHash)
+func (output *Output) IsLockedWithPubKOrPubKH(pubKOrPubKH []byte) bool {
+	scriptPubKey := output.ScriptPubKey
 
-	//si la longueur des deux scripts est différente
-	if len(output.ScriptPubKey) != len(scriptPubKey) {
-		return false
-	}
 	//pour chaque element du script
-	for i := 0; i < len(scriptPubKey); i++ {
-		//si l'element du scriptPubKey de l'output est différent
-		//de l'element du scriptPubKey généré avec la pubKeyHash
-		if bytes.Compare(scriptPubKey[i], output.ScriptPubKey[i]) != 0 {
-			return false
+	for _, op := range scriptPubKey {
+		if bytes.Compare(op, pubKOrPubKH) == 0 {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func (out *Output) ToOutputUtil() *util.Output {
 	return &util.Output{
-		ScriptPubKey: out.ScriptPubKey,
+		ScriptPubKey:   out.ScriptPubKey,
 		TxScriptLength: out.TxScriptLength,
-		Value: out.Value,
+		Value:          out.Value,
 	}
 }
-
 
 //TxOutputs -> []byte
 func (outs *TxOutputs) Serialize() []byte {
@@ -128,21 +147,20 @@ func (out *Output) GetSize() uint64 {
 	return 0
 }
 
-
 type Transaction struct {
-	Version []byte //[4]
-	InCounter []byte //[1-9]
-	Inputs []Input
+	Version    []byte //[4]
+	InCounter  []byte //[1-9]
+	Inputs     []Input
 	OutCounter []byte //[1-9]
-	Outputs []Output
-	LockTime []byte //[4]
+	Outputs    []Output
+	LockTime   []byte //[4]
 }
 
 //Transaction -> []byte
 func (tx *Transaction) Serialize() []byte {
 	b, err := json.Marshal(tx)
 	if err != nil {
-        log.Panic(err)
+		log.Panic(err)
 	}
 	bu := new(bytes.Buffer)
 	enc := gob.NewEncoder(bu)
@@ -164,19 +182,19 @@ func DeserializeTransaction(data []byte) *Transaction {
 	}
 	json.Unmarshal(dataByte, tx)
 	return tx
-} 
+}
 
 //Créer une transaction coinbase
 func NewCoinbaseTx(toPubKey []byte, fees int) Transaction {
 	var empty [][]byte
 	txIn := NewTxInput([]byte{}, util.EncodeInt(-1), empty)
-	txOut := NewTxOutput(script.Script.LockingScript(util.Ripemd160(util.Sha256(toPubKey))), conf.REWARD + fees)
+	txOut := NewTxOutput(script.Script.LockingScript([][]byte{util.Ripemd160(util.Sha256(toPubKey))}, 0), conf.REWARD+fees)
 
 	tx := Transaction{
-		Version: []byte{conf.VERSION},
-		InCounter: util.EncodeInt(1),
+		Version:    []byte{conf.VERSION},
+		InCounter:  util.EncodeInt(1),
 		OutCounter: util.EncodeInt(1),
-		LockTime: []byte{0},
+		LockTime:   []byte{0},
 	}
 	tx.Inputs = []Input{txIn}
 	tx.Outputs = []Output{txOut}
@@ -207,9 +225,9 @@ func (tx *Transaction) GetSize() uint64 {
 }
 
 //Signe une transaction avec le clé privé
-func (tx *Transaction) Sign(prevTxs map[string]*util.Transaction, inputsPrivKey []ecdsa.PrivateKey, inputsPubKey [][]byte){
+func (tx *Transaction) Sign(prevTxs map[string]*util.Transaction, inputsPrivKey []ecdsa.PrivateKey, inputsPubKey [][]byte) {
 	//si la transaction est coinbase
-	if tx.IsCoinbase(){
+	if tx.IsCoinbase() {
 		return
 	}
 	for idx, in := range tx.Inputs {
@@ -222,7 +240,7 @@ func (tx *Transaction) Sign(prevTxs map[string]*util.Transaction, inputsPrivKey 
 		}
 
 		signature := append(r.Bytes(), s.Bytes()...)
-		//on update l'input avec un nouvel input identique 
+		//on update l'input avec un nouvel input identique
 		//mais comprenant le bon scriptSig
 		tx.Inputs[idx] = NewTxInput(in.PrevTransactionHash, in.Vout, script.Script.UnlockingScript(signature, inputsPubKey[idx]))
 	}
@@ -257,7 +275,7 @@ func (tx *Transaction) GetFees(prevTxs map[string]*Transaction) int {
 	return total_input - total_output
 }
 
-func InputsToInputsUtil(inputs []Input) []util.Input{
+func InputsToInputsUtil(inputs []Input) []util.Input {
 	var ret []util.Input
 	for _, in := range inputs {
 		ret = append(ret, *in.ToInputUtil())
@@ -265,7 +283,7 @@ func InputsToInputsUtil(inputs []Input) []util.Input{
 	return ret
 }
 
-func OutputsToOutputsUtil(outputs []Output) []util.Output{
+func OutputsToOutputsUtil(outputs []Output) []util.Output {
 	var ret []util.Output
 	for _, out := range outputs {
 		ret = append(ret, *out.ToOutputUtil())
@@ -275,11 +293,11 @@ func OutputsToOutputsUtil(outputs []Output) []util.Output{
 
 func (tx *Transaction) ToTxUtil() *util.Transaction {
 	return &util.Transaction{
-		InCounter: tx.InCounter,
-		Inputs: InputsToInputsUtil(tx.Inputs),
+		InCounter:  tx.InCounter,
+		Inputs:     InputsToInputsUtil(tx.Inputs),
 		OutCounter: tx.OutCounter,
-		Outputs: OutputsToOutputsUtil(tx.Outputs),
-		Version: tx.Version,
-		LockTime: tx.LockTime,
+		Outputs:    OutputsToOutputsUtil(tx.Outputs),
+		Version:    tx.Version,
+		LockTime:   tx.LockTime,
 	}
 }

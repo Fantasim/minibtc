@@ -3,7 +3,9 @@ package twayutil
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 	conf "tway/config"
@@ -100,7 +102,7 @@ func GetMerkleHash(txs []Transaction) []byte {
 	txsDoubleByteArray := TransactionToByteDoubleArray(txs)
 
 	//recupère le merkle root de la liste de transaction
-	return util.NewMerkleTree(txsDoubleByteArray).RootNode.Data
+	return util.GetMerkleRoot(txsDoubleByteArray).Data
 }
 
 func NewBlock(txs []Transaction, prevBlockHash []byte, pubKeyCoinbase []byte, total_fees int, bits int64) *Block {
@@ -126,4 +128,15 @@ func NewBlock(txs []Transaction, prevBlockHash []byte, pubKeyCoinbase []byte, to
 	block.Header = header
 
 	return block
+}
+
+func (bh *BlockHeader) String() string {
+	return fmt.Sprintf("{Version: %d, PrevBlock: %s, MerkleRoot: %s, Time: %d, Bits: %d, Nonce: %d}",
+		util.DecodeInt(bh.Version),
+		hex.EncodeToString(bh.HashPrevBlock),
+		hex.EncodeToString(bh.HashMerkleRoot),
+		util.DecodeInt(bh.Time),
+		util.DecodeInt(bh.Bits),
+		util.DecodeInt(bh.Nonce),
+	)
 }

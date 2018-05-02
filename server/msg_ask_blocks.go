@@ -20,7 +20,7 @@ func (s *Server) askNewBlock(p *serverPeer, lastblock int) {
 	}
 	if p != nil {
 		//on récupère la plus haute hauteur de block demandé au réseau
-		betterHeightAsked := s.HistoryManager.GetBetterHeightAsked()
+		betterHeightAsked := s.HistoryManager.GetBlock.GetBetterHeightAsked()
 		//si le noeud n'a pas demandé de nouveaux blocks ou
 		//que la taille de la chain local est supérieur
 		//à la dernière hauteur de block demandé.
@@ -32,7 +32,7 @@ func (s *Server) askNewBlock(p *serverPeer, lastblock int) {
 		if betterHeightAsked < lastblock {
 			//on récupère l'historique de demande de block ayant un intervalle [x; x + conf.MaxBlockPerMsg],
 			//dont la valeur extérieur est la plus grande
-			higherRangeAsked := s.HistoryManager.GetgetBlocksHistorysAskedWithMaxRange().HigherRange()
+			higherRangeAsked := s.HistoryManager.GetBlock.GetgetBlocksHistorysAskedWithMaxRange().HigherRange()
 			var rangeExter int
 			if higherRangeAsked != nil {
 				rangeExter = higherRangeAsked.Message.Range[1]

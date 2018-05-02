@@ -1,21 +1,21 @@
 package main
 
 import (
-       "tway/cli"
-       "math/rand"
-       "time"
-       "tway/wallet"
-       "tway/blockchain"
-       "tway/config"
+	"math/rand"
+	"time"
+	"tway/blockchain"
+	"tway/cli"
+	"tway/config"
+	"tway/wallet"
 )
 
-func init(){
-     rand.Seed(time.Now().UTC().UnixNano())
-     config.InitPKG()
-     blockchain.InitPKG()
-     wallet.InitPKG()
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+	config.InitPKG()
+	blockchain.InitPKG()
+	wallet.InitPKG()
 }
 
-func main(){
-    cli.Start()
+func main() {
+	cli.Start()
 }

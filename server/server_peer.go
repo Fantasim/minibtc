@@ -4,6 +4,8 @@ import (
 	"sync"
 	"tway/peer"
 
+	"tway/serverutil"
+
 	"github.com/bradfitz/slice"
 )
 
@@ -13,14 +15,16 @@ type sliceOfPeers []*serverPeer
 type serverPeer struct {
 	*peer.Peer
 
-	mu       sync.Mutex
-	mainNode bool
+	mu         sync.Mutex
+	netAddress *serverutil.NetAddress
+	mainNode   bool
 }
 
-func NewServerPeer(addr string) *serverPeer {
+func NewServerPeer(netAddress *serverutil.NetAddress) *serverPeer {
 	return &serverPeer{
-		Peer:     peer.NewPeer(addr),
-		mainNode: GetMainNode().String() == addr,
+		Peer:       peer.NewPeer(netAddress.String()),
+		netAddress: netAddress,
+		mainNode:   GetMainNode().String() == netAddress.String(),
 	}
 }
 
@@ -30,6 +34,10 @@ func (sp *serverPeer) IsEqual(sp2 *serverPeer) bool {
 
 func (sp *serverPeer) IsMainNode() bool {
 	return sp.mainNode
+}
+
+func (sp *serverPeer) GetNetAddress() *serverutil.NetAddress {
+	return sp.netAddress
 }
 
 func (sp *serverPeer) VerAckReceived() {
@@ -61,6 +69,16 @@ func (list listOfPeers) GetPeersBasedOnHeight(minHeight int) listOfPeers {
 	return ret
 }
 
+func (list listOfPeers) FilterByActive(connected bool) listOfPeers {
+	ret := make(listOfPeers, 0)
+	for addr, p := range list {
+		if p.IsConnected() == connected {
+			ret[addr] = p
+		}
+	}
+	return ret
+}
+
 func (list listOfPeers) ListOfPeersToSlice() sliceOfPeers {
 	ret := make([]*serverPeer, 0)
 
@@ -84,7 +102,7 @@ func (slc sliceOfPeers) SliceOfPeersToMap() listOfPeers {
 func (slc sliceOfPeers) SortByBytesReceived(desc bool) {
 	//on les tries par date de creation
 	slice.Sort(slc[:], func(i, j int) bool {
-		if desc == false {
+		if desc == true {
 			return slc[i].GetBytesReceived() > slc[j].GetBytesReceived()
 		} else {
 			return slc[i].GetBytesReceived() < slc[j].GetBytesReceived()

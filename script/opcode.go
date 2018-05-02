@@ -1,13 +1,15 @@
 package script
 
 import (
-	"errors"
 	"bytes"
-	"tway/util"
-	"math/big"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/hex"
+	"errors"
+	"fmt"
+	"math/big"
+	"tway/config"
+	"tway/util"
 )
 
 type opcode struct {
@@ -39,64 +41,71 @@ const (
 	sigHashMask = 0x1f
 )
 
-
 const (
-	OP_0                   = 0x00 // 0
-	OP_DATA_1              = 0x01 // 1
-	OP_DATA_2              = 0x02 // 2
-	OP_DATA_3              = 0x03 // 3
-	OP_DATA_4              = 0x04 // 4
-	OP_DATA_5              = 0x05 // 5
-	OP_DATA_6              = 0x06 // 6
-	OP_DATA_7              = 0x07 // 7
-	OP_DATA_8              = 0x08 // 8
-	OP_DATA_9              = 0x09 // 9
-	OP_DATA_10             = 0x0a // 10
-	OP_DATA_11             = 0x0b // 11
-	OP_DATA_12             = 0x0c // 12
-	OP_DATA_13             = 0x0d // 13
-	OP_DATA_14             = 0x0e // 14
-	OP_DATA_15             = 0x0f // 15
-	OP_DATA_16             = 0x10 // 16
-	OP_2                   = 0x52 // 82
-	OP_3                   = 0x53 // 83
-	OP_DUP                 = 0x76 // 118 
-	OP_EQUALVERIFY         = 0x88 // 136
-	OP_ADD                 = 0x93 // 147
-	OP_SUB                 = 0x94 // 148
-	OP_HASH160             = 0xa9 // 169
-	OP_CHECKSIG            = 0xac // 172
-	OP_CHECKSIGVERIFY      = 0xad // 173
-	OP_CHECKMULTISIG       = 0xae // 174
+	OP_0       = 0x00 // 0
+	OP_DATA_1  = 0x01 // 1
+	OP_DATA_2  = 0x02 // 2
+	OP_DATA_3  = 0x03 // 3
+	OP_DATA_4  = 0x04 // 4
+	OP_DATA_5  = 0x05 // 5
+	OP_DATA_6  = 0x06 // 6
+	OP_DATA_7  = 0x07 // 7
+	OP_DATA_8  = 0x08 // 8
+	OP_DATA_9  = 0x09 // 9
+	OP_DATA_10 = 0x0a // 10
+	OP_DATA_11 = 0x0b // 11
+	OP_DATA_12 = 0x0c // 12
+	OP_DATA_13 = 0x0d // 13
+	OP_DATA_14 = 0x0e // 14
+	OP_DATA_15 = 0x0f // 15
+	OP_DATA_16 = 0x10 // 16
+
+	OP_DUP            = 0x76 // 118
+	OP_EQUALVERIFY    = 0x88 // 136
+	OP_ADD            = 0x93 // 147
+	OP_SUB            = 0x94 // 148
+	OP_HASH160        = 0xa9 // 169
+	OP_CHECKSIG       = 0xac // 172
+	OP_CHECKSIGVERIFY = 0xad // 173
+	OP_CHECKMULTISIG  = 0xae // 174
 )
 
 var opcodeArray = [256]opcode{
-	OP_DATA_1:    {OP_DATA_1, "OP_DATA_1", 2, opcodePushData},
-	OP_DATA_2:    {OP_DATA_2, "OP_DATA_2", 3, opcodePushData},
-	OP_DATA_3:    {OP_DATA_3, "OP_DATA_3", 4, opcodePushData},
-	OP_DATA_4:    {OP_DATA_4, "OP_DATA_4", 5, opcodePushData},
-	OP_DATA_5:    {OP_DATA_5, "OP_DATA_5", 6, opcodePushData},
-	OP_DATA_6:    {OP_DATA_6, "OP_DATA_6", 7, opcodePushData},
-	OP_DATA_7:    {OP_DATA_7, "OP_DATA_7", 8, opcodePushData},
-	OP_DATA_8:    {OP_DATA_8, "OP_DATA_8", 9, opcodePushData},
-	OP_DATA_9:    {OP_DATA_9, "OP_DATA_9", 10, opcodePushData},
-	OP_DATA_10:   {OP_DATA_10, "OP_DATA_10", 11, opcodePushData},
-	OP_DATA_11:   {OP_DATA_11, "OP_DATA_11", 12, opcodePushData},
-	OP_DATA_12:   {OP_DATA_12, "OP_DATA_12", 13, opcodePushData},
-	OP_DATA_13:   {OP_DATA_13, "OP_DATA_13", 14, opcodePushData},
-	OP_DATA_14:   {OP_DATA_14, "OP_DATA_14", 15, opcodePushData},
-	OP_DATA_15:   {OP_DATA_15, "OP_DATA_15", 16, opcodePushData},
-	OP_DATA_16:   {OP_DATA_16, "OP_DATA_16", 17, opcodePushData},
-	OP_2:         {OP_2, "OP_2", 1, opcodeN},
-	OP_3:         {OP_3, "OP_3", 1, opcodeN},
-	OP_DUP:          {OP_DUP, "OP_DUP", 1, opcodeDup},
-	OP_EQUALVERIFY: {OP_EQUALVERIFY, "OP_EQUALVERIFY", 1, opcodeEqualVerify},
-	OP_ADD:                {OP_ADD, "OP_ADD", 1, opcodeAdd},
-	OP_SUB:                {OP_SUB, "OP_SUB", 1, opcodeSub},
-	OP_HASH160:             {OP_HASH160, "OP_HASH160", 1, opcodeHash160},
-	OP_CHECKSIG:            {OP_CHECKSIG, "OP_CHECKSIG", 1, opcodeCheckSig},
-	OP_CHECKSIGVERIFY:      {OP_CHECKSIGVERIFY, "OP_CHECKSIGVERIFY", 1, nil},
-	OP_CHECKMULTISIG:       {OP_CHECKMULTISIG, "OP_CHECKMULTISIG", 1, nil},
+	OP_DATA_1:  {OP_DATA_1, "OP_DATA_1", 2, opcodePushData},
+	OP_DATA_2:  {OP_DATA_2, "OP_DATA_2", 3, opcodePushData},
+	OP_DATA_3:  {OP_DATA_3, "OP_DATA_3", 4, opcodePushData},
+	OP_DATA_4:  {OP_DATA_4, "OP_DATA_4", 5, opcodePushData},
+	OP_DATA_5:  {OP_DATA_5, "OP_DATA_5", 6, opcodePushData},
+	OP_DATA_6:  {OP_DATA_6, "OP_DATA_6", 7, opcodePushData},
+	OP_DATA_7:  {OP_DATA_7, "OP_DATA_7", 8, opcodePushData},
+	OP_DATA_8:  {OP_DATA_8, "OP_DATA_8", 9, opcodePushData},
+	OP_DATA_9:  {OP_DATA_9, "OP_DATA_9", 10, opcodePushData},
+	OP_DATA_10: {OP_DATA_10, "OP_DATA_10", 11, opcodePushData},
+	OP_DATA_11: {OP_DATA_11, "OP_DATA_11", 12, opcodePushData},
+	OP_DATA_12: {OP_DATA_12, "OP_DATA_12", 13, opcodePushData},
+	OP_DATA_13: {OP_DATA_13, "OP_DATA_13", 14, opcodePushData},
+	OP_DATA_14: {OP_DATA_14, "OP_DATA_14", 15, opcodePushData},
+	OP_DATA_15: {OP_DATA_15, "OP_DATA_15", 16, opcodePushData},
+	OP_DATA_16: {OP_DATA_16, "OP_DATA_16", 17, opcodePushData},
+	OP_0:       {OP_0, "OP_0", 1, opcodePushData},
+
+	OP_DUP:            {OP_DUP, "OP_DUP", 1, opcodeDup},
+	OP_EQUALVERIFY:    {OP_EQUALVERIFY, "OP_EQUALVERIFY", 1, opcodeEqualVerify},
+	OP_ADD:            {OP_ADD, "OP_ADD", 1, opcodeAdd},
+	OP_SUB:            {OP_SUB, "OP_SUB", 1, opcodeSub},
+	OP_HASH160:        {OP_HASH160, "OP_HASH160", 1, opcodeHash160},
+	OP_CHECKSIG:       {OP_CHECKSIG, "OP_CHECKSIG", 1, opcodeCheckSig},
+	OP_CHECKSIGVERIFY: {OP_CHECKSIGVERIFY, "OP_CHECKSIGVERIFY", 1, nil},
+	OP_CHECKMULTISIG:  {OP_CHECKMULTISIG, "OP_CHECKMULTISIG", 1, opcodeCheckMultiSig},
+}
+
+func GetOpcodeValueByName(name string) (byte, bool) {
+	for _, op := range opcodeArray {
+		if name == op.name {
+			return op.value, true
+		}
+	}
+	return OP_0, false
 }
 
 func (op opcode) IsEmpty() bool {
@@ -111,39 +120,28 @@ func (code *parsedOpcode) IsAction() bool {
 	}
 
 	switch uint(code.opcode.value) {
-		case OP_DUP:
-			return true
-		case OP_EQUALVERIFY:
-			return true
-		case OP_ADD:
-			return true
-		case OP_SUB:
-			return true
-		case OP_HASH160:
-			return true
-		case OP_CHECKSIG:
-			return true
-		case OP_CHECKSIGVERIFY:
-			return true
-		case OP_CHECKMULTISIG:
-			return true
-		default:
-			return false
+	case OP_DUP:
+		return true
+	case OP_EQUALVERIFY:
+		return true
+	case OP_ADD:
+		return true
+	case OP_SUB:
+		return true
+	case OP_HASH160:
+		return true
+	case OP_CHECKSIG:
+		return true
+	case OP_CHECKSIGVERIFY:
+		return true
+	case OP_CHECKMULTISIG:
+		return true
+	default:
+		return false
 	}
 }
 
-
 func opcodePushData(op *parsedOpcode, vm *Engine) error {
-	vm.dstack.Push(op.data)
-	return nil
-}
-
-// opcodeN is a common handler for the small integer data push opcodes.  It
-// pushes the numeric value the opcode represents (which will be from 1 to 16)
-// onto the data stack.
-func opcodeN(op *parsedOpcode, vm *Engine) error {
-	// The opcodes are all defined consecutively, so the numeric value is
-	// the difference.
 	vm.dstack.Push(op.data)
 	return nil
 }
@@ -271,7 +269,7 @@ func opcodeCheckSig(op *parsedOpcode, vm *Engine) error {
 	s.SetBytes(fullSigBytes[(sigLen / 2):])
 
 	txid := hex.EncodeToString(vm.tx.Inputs[vm.txIdx].PrevTransactionHash)
-	
+
 	curve := elliptic.P256()
 
 	rawPubKey := ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}
@@ -282,5 +280,102 @@ func opcodeCheckSig(op *parsedOpcode, vm *Engine) error {
 		valid = true
 	}
 	vm.dstack.PushBool(valid)
+	return nil
+}
+
+// parsedSigInfo houses a raw signature along with its parsed form and a flag
+// for whether or not it has already been parsed.  It is used to prevent parsing
+// the same signature multiple times when verifying a multisig.
+type parsedSigInfo struct {
+	signature []byte
+	parsed    bool
+}
+
+func opcodeCheckMultiSig(op *parsedOpcode, vm *Engine) error {
+	nPubk, err := vm.dstack.PopInt()
+	if err != nil {
+		return err
+	}
+
+	if nPubk < 0 {
+		return errors.New("less than 0 pubk")
+	}
+
+	pubKeys := make([][]byte, 0, nPubk)
+	for i := 0; i < nPubk; i++ {
+		pubKey, err := vm.dstack.Pop()
+		if err != nil {
+			return err
+		}
+		pubKeys = append(pubKeys, pubKey)
+	}
+
+	nSigs, err := vm.dstack.PopInt()
+	if err != nil {
+		return err
+	}
+	if nSigs < 0 {
+		return fmt.Errorf("number of signatures '%d' is less than 0",
+			nSigs)
+	}
+	if nSigs > nPubk {
+		return fmt.Errorf("more signatures than pubkeys: %d > %d",
+			nSigs, nPubk)
+	}
+
+	var signatures []*parsedSigInfo
+	for len(vm.dstack.stk) > 0 {
+		signature, err := vm.dstack.Pop()
+		if err != nil {
+			return err
+		}
+		sigInfo := &parsedSigInfo{signature: signature}
+		signatures = append(signatures, sigInfo)
+	}
+
+	fmt.Println(" signatures:")
+	for idx, sig := range signatures {
+		fmt.Printf("[%d] %s \n", idx, hex.EncodeToString(sig.signature))
+	}
+	fmt.Println("\n pubkeys")
+	for idx, pubk := range pubKeys {
+		fmt.Printf("[%d] %s \n", idx, hex.EncodeToString(pubk))
+	}
+
+	curve := elliptic.P256()
+	txid := hex.EncodeToString(vm.tx.Inputs[vm.txIdx].PrevTransactionHash)
+	success := 0
+	for i := 0; i < len(signatures); i++ {
+
+		pubk := pubKeys[i]
+		sigBytes := signatures[i].signature
+
+		if len(sigBytes) != config.SigLength {
+			continue
+		}
+
+		x := big.Int{}
+		y := big.Int{}
+		keyLen := len(pubk)
+		x.SetBytes(pubk[:(keyLen / 2)])
+		y.SetBytes(pubk[(keyLen / 2):])
+
+		r := big.Int{}
+		s := big.Int{}
+		sigLen := len(sigBytes)
+		r.SetBytes(sigBytes[:(sigLen / 2)])
+		s.SetBytes(sigBytes[(sigLen / 2):])
+
+		rawPubKey := ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}
+
+		if ecdsa.Verify(&rawPubKey, vm.prevTxs[txid].Serialize(), &r, &s) == true {
+			success++
+		}
+		fmt.Println(success)
+	}
+
+	if success >= nSigs {
+		vm.dstack.PushBool(true)
+	}
 	return nil
 }

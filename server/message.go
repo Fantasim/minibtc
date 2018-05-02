@@ -1,10 +1,10 @@
 package server
 
 import (
-	"io/ioutil"
-	"net"
-	"log"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net"
 	conf "tway/config"
 )
 
@@ -33,12 +33,16 @@ func (s *Server) HandleConnexion(conn net.Conn) {
 		s.handleAskBlocks(request)
 	case "getdata": //reception d'une demande d'envoie de data grace au hash (tx ou block)
 		s.handleGetData(request)
+	case "getheaders":
+		s.handleAskHeaders(request)
+	case "headers":
+		s.handleHeaders(request)
 	case "ping": //reception d'un ping
 		s.handlePing(request)
 	case "pong": //reception d'une reponse à un ping
 		s.handlePong(request)
-/*	case "tx":
-		handleTx(request, bc)*/
+	case "tx":
+		s.handleTx(request)
 	case "verack": //reception d'une confirmation de reception de version
 		s.handleVerack(request)
 	case "version": //reception d'une version d'un noeud

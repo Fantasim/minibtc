@@ -1,22 +1,12 @@
 package script
 
 import (
-	"fmt"
 	"errors"
 	"tway/util"
 )
 
 type stack struct {
-	stk               [][]byte
-}
-
-//Affiche la stack
-func (s *stack) PrintStack(){
-	fmt.Print("stack : ")
-	for _, elem := range s.stk {
-		fmt.Print(elem)
-	}
-	fmt.Print("\n")
+	stk [][]byte
 }
 
 //ajoute un []byte dans la stack
@@ -55,7 +45,7 @@ func (s *stack) Pop() ([]byte, error) {
 
 //recupere et supprime le dernier element ajouté dans la stack
 //format : int
-func (s *stack) PopInt() (int, error){
+func (s *stack) PopInt() (int, error) {
 	if len(s.stk) == 0 {
 		return 0, errors.New("empty stack")
 	}
@@ -76,7 +66,7 @@ func (s *stack) PopInt() (int, error){
 
 //recupere et supprime le dernier element ajouté dans la stack
 //format : bool
-func (s *stack) PopBool() (bool, error){
+func (s *stack) PopBool() (bool, error) {
 	if len(s.stk) == 0 {
 		return false, errors.New("empty stack")
 	}
@@ -99,9 +89,9 @@ func (s *stack) PopBool() (bool, error){
 }
 
 //Duplique les n derniers elements de la stack
-func (s *stack) DupN(n int)error{
+func (s *stack) DupN(n int) error {
 	for n > 0 {
-		s.stk = append(s.stk, s.stk[len(s.stk) - 1])
+		s.stk = append(s.stk, s.stk[len(s.stk)-1])
 		n--
 	}
 	return nil

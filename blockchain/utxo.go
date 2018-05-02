@@ -1,13 +1,16 @@
 package blockchain
 
 import (
-	"github.com/boltdb/bolt"
+	"bytes"
+	"encoding/gob"
+	"encoding/hex"
+	"errors"
+	"log"
+	"tway/script"
 	"tway/twayutil"
 	"tway/util"
-	"encoding/hex"
-	"encoding/gob"
-	"bytes"
-	"log"
+
+	"github.com/boltdb/bolt"
 )
 
 const (
@@ -23,9 +26,10 @@ type UTXOSet struct {
 
 //Structure représentant les informations liés à un UTXO
 type UnspentOutput struct {
-	TxID []byte
-	Idx int //index of output in tx
-	Output twayutil.Output
+	TxID     []byte
+	Idx      int //index of output in tx
+	Output   twayutil.Output
+	MultiSig bool
 }
 
 type UnspentOutputs struct {
@@ -57,10 +61,34 @@ func DeserializeTxOutputs(d []byte) *UnspentOutputs {
 	return &outs
 }
 
+//Récupère un output non dépensé se trouvant dans txHash a la position vout
+//Retourne nil si non existant.
+func (utxo *UTXOSet) GetUnSpentOutputByVoutAndTxHash(vout int, txHash []byte) *UnspentOutput {
+	db := BC.DB
+	var unspentOutput *UnspentOutput = nil
 
-//Récupère une liste d'outputs non dépensé locké avec le pubKeyHash
+	db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(UTXO_BUCKET))
+		encodedTxOutputs := b.Get(txHash)
+		if len(encodedTxOutputs) == 0 {
+			return errors.New("UTXO doesn't exist")
+		}
+		unSpents := DeserializeTxOutputs(encodedTxOutputs)
+		for _, out := range unSpents.Outputs {
+			if out.Idx == vout {
+				unspentOutput = &out
+				return nil
+			}
+		}
+		return nil
+	})
+	return unspentOutput
+}
+
+//Récupère une liste d'outputs non dépensé locké avec
+//une clé publique hashé (Pay2PubKH) ou une clé publique (Pay2ScriptH)
 //d'un montant supérieur ou égal au montant passé en paramètre
-func (utxo *UTXOSet) GetUnspentOutputsByPubKeyHash(pubKeyHash []byte, amount int) (int, []UnspentOutput) {
+func (utxo *UTXOSet) GetUnspentOutputsByPubKOrPubKH(pubKOrPubKHList [][]byte, amount int) (int, []UnspentOutput) {
 	var unspentOutputs []UnspentOutput
 	accumulated := 0
 	db := BC.DB
@@ -76,12 +104,14 @@ func (utxo *UTXOSet) GetUnspentOutputsByPubKeyHash(pubKeyHash []byte, amount int
 			for _, unSpent := range unSpents.Outputs {
 				//si l'output est locké avec la pubKeyHash passé en paramètre
 				//et que le montant accumulé est inférieur au montant passé en paramètre
-				
-				if unSpent.Output.IsLockedWithPubKeyHash(pubKeyHash) == true && accumulated < amount{
-					value := util.DecodeInt(unSpent.Output.Value)
-					accumulated += value
-					//on ajoute l'output à la liste des utxo
-					unspentOutputs = append(unspentOutputs, unSpent)
+				for _, pubKOrPubKH := range pubKOrPubKHList {
+					islocked := unSpent.Output.IsLockedWithPubKOrPubKH(pubKOrPubKH)
+					if islocked == true && accumulated < amount {
+						value := util.DecodeInt(unSpent.Output.Value)
+						accumulated += value
+						//on ajoute l'output à la liste des utxo
+						unspentOutputs = append(unspentOutputs, unSpent)
+					}
 				}
 			}
 		}
@@ -98,8 +128,8 @@ func (utxo *UTXOSet) Reindex() error {
 	bucketName := []byte(UTXO_BUCKET)
 	db := BC.DB
 	UTXO := BC.FindUTXO()
-	
-	err := db.Update(func (tx *bolt.Tx) error {
+
+	err := db.Update(func(tx *bolt.Tx) error {
 		err := tx.DeleteBucket(bucketName)
 		if err != nil && err != bolt.ErrBucketNotFound {
 			return err
@@ -123,9 +153,10 @@ func (utxo *UTXOSet) Reindex() error {
 
 func OutputToUnspentOutput(out *twayutil.Output, tx *twayutil.Transaction, vout int) UnspentOutput {
 	return UnspentOutput{
-		TxID: tx.GetHash(),
-		Output: *out,
-		Idx: vout,
+		TxID:     tx.GetHash(),
+		Output:   *out,
+		Idx:      vout,
+		MultiSig: script.Script.IsPayToHashScript(out.ScriptPubKey),
 	}
 }
 
@@ -145,4 +176,3 @@ func (utxo *UTXOSet) CountTx() int {
 	})
 	return i
 }
-

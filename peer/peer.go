@@ -21,6 +21,7 @@ type Peer struct {
 	verAckReceived bool
 	hasSentVersion bool
 
+	lastRequestReceived  int64
 	lastGetAddrTime      int64
 	lastAskAddrTime      int64
 	lastPingSentTime     int64
@@ -53,6 +54,12 @@ func (p *Peer) SetLastBlock(last int64) {
 	p.statsMtx.Lock()
 	defer p.statsMtx.Unlock()
 	p.lastBlock = last
+}
+
+func (p *Peer) RequestReceived() {
+	p.statsMtx.Lock()
+	defer p.statsMtx.Unlock()
+	p.lastRequestReceived = time.Now().UnixNano()
 }
 
 func (p *Peer) GotAddr() {
@@ -137,4 +144,17 @@ func (p *Peer) GetLastPingSentTime() int64 {
 
 func (p *Peer) GetLastPongReceivedTime() int64 {
 	return p.lastPongReceivedTime
+}
+
+func (p *Peer) IsConnected() bool {
+	fiveSecsNano := (5 * time.Second).Nanoseconds()
+	nowNano := time.Now().UnixNano()
+
+	if (nowNano - fiveSecsNano) > p.GetLastPingSentTime() {
+		nanosPongLessPing := p.GetLastPongReceivedTime() - p.GetLastPingSentTime()
+		if nanosPongLessPing > 0 && nanosPongLessPing < fiveSecsNano {
+			return true
+		}
+	}
+	return false
 }

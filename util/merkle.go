@@ -2,12 +2,12 @@ package util
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"math"
 )
 
-// MerkleTree represent a Merkle tree
-type MerkleTree struct {
-	RootNode *MerkleNode
-}
+type nodeList []MerkleNode
 
 // MerkleNode represent a Merkle tree node
 type MerkleNode struct {
@@ -16,37 +16,12 @@ type MerkleNode struct {
 	Data  []byte
 }
 
-//Cree un merkle tree grace à un tableau de data
-func NewMerkleTree(data [][]byte) *MerkleTree {
-	var nodes []MerkleNode
-
-	//si la taille du tableau de data n'est pas pair
-	if len(data)%2 != 0 {
-		//ajoute une data identique à la dernier de la liste
-		data = append(data, data[len(data)-1])
+func (nl nodeList) Print() {
+	for _, n := range nl {
+		fmt.Print(hex.EncodeToString(n.Data))
+		fmt.Print(" ")
 	}
-
-	for _, datum := range data {
-		//on cree un nouveau noeud
-		node := NewMerkleNode(nil, nil, datum)
-		nodes = append(nodes, *node)
-	}
-
-	//on parcours la liste des data / 2
-	for i := 0; i < len(data)/2; i++ {
-		var newLevel []MerkleNode
-		
-		for j := 0; j < len(nodes); j += 2 {
-			node := NewMerkleNode(&nodes[j], &nodes[j+1], nil)
-			newLevel = append(newLevel, *node)
-		}
-
-		nodes = newLevel
-	}
-
-	mTree := MerkleTree{&nodes[0]}
-
-	return &mTree
+	fmt.Print("\n")
 }
 
 // NewMerkleNode creates a new Merkle tree node
@@ -64,6 +39,58 @@ func NewMerkleNode(left, right *MerkleNode, data []byte) *MerkleNode {
 
 	mNode.Left = left
 	mNode.Right = right
-
 	return &mNode
+}
+
+func GetMerkleRoot(data [][]byte) *MerkleNode {
+	inc := 0
+	if len(data)%2 != 0 {
+		inc = 1
+	}
+	numberOfTwoPower := GetNumberOfTwoPower(len(data)+inc) - 1
+
+	var nodes nodeList
+	nodes = make(nodeList, int(math.Pow(2, float64(numberOfTwoPower))))
+
+	var i int
+	var d []byte
+	for i, d = range data {
+		nodes[i] = *NewMerkleNode(nil, nil, d)
+	}
+
+	if (i+1)%2 != 0 {
+		nodes[i+1] = nodes[i]
+	}
+
+	for i := 0; i < numberOfTwoPower; i++ {
+		tmpNodes := make(nodeList, int(math.Pow(2, float64(numberOfTwoPower-i-1))))
+		var j = 0
+		for j < len(nodes)/2 {
+			if len(nodes[j*2].Data) != 0 {
+				tmpNodes[j] = *NewMerkleNode(&nodes[j*2], &nodes[(j*2)+1], []byte{})
+			} else {
+				break
+			}
+			j++
+		}
+		if j%2 != 0 && len(tmpNodes) > 2 {
+			tmpNodes[j] = tmpNodes[j-1]
+		}
+		nodes = tmpNodes
+	}
+
+	return &nodes[0]
+}
+
+func GetNumberOfTwoPower(n int) int {
+	cpt := 0
+	i := 1
+	for n > i {
+		cpt++
+		i *= 2
+	}
+	if i >= n {
+		cpt++
+	}
+	return cpt
 }

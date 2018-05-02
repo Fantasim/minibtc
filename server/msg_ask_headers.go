@@ -2,11 +2,10 @@ package server
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	conf "tway/config"
+	"tway/util"
 
-	"encoding/hex"
 	"tway/serverutil"
 	"tway/twayutil"
 )
@@ -29,7 +28,31 @@ func (s *Server) sendAskHeaders(addrTo *serverutil.NetAddress, headHash []byte, 
 	//on append la commande et le payload
 	request := append(commandToBytes("getheaders"), payload...)
 	err := s.sendData(addrTo.String(), request)
+
+	if err != nil {
+		go s.HistoryManager.NewGetHeadersHistory(askHeaders, false)
+	}
+
 	return request, err
+}
+
+//Retourne le pourcentage de succès des envoie de requêtes
+func (s *Server) BootstrapGetHeaders(peers map[string]*serverPeer, headHash []byte, stoppingHash []byte, count uint16) float64 {
+	lengthPeers := float64(len(peers))
+	var nbRequestSucceeded = 0
+
+	for addr, _ := range peers {
+		na := serverutil.NewNetAddressIPPort(util.StringToNetIpAndPort(addr))
+		_, err := s.sendAskHeaders(na, headHash, stoppingHash, count)
+		if err == nil {
+			nbRequestSucceeded++
+		}
+	}
+	if lengthPeers == 0 {
+		lengthPeers = 1
+	}
+
+	return lengthPeers / float64(nbRequestSucceeded) * 100
 }
 
 func (s *Server) filterHeadersListFromHeadHash(headBlock *twayutil.Block, count int, heightStart int) []serverutil.Header {
@@ -118,21 +141,25 @@ func (s *Server) GetBlockHeadersList(payload serverutil.MsgAskHeaders) []serveru
 	return headerList
 }
 
-//Receptionne une demande de liste de hash de block dans un intervalle de height donné
-//voir structure MsgAskBlocks
+//Receptionne une demande de liste header de block
+//voir structure MsgAskHeaders
 func (s *Server) handleAskHeaders(request []byte) {
 	var payload serverutil.MsgAskHeaders
+
 	if err := getPayload(request, &payload); err != nil {
 		log.Panic(err)
 	}
+
+	go s.HistoryManager.NewGetHeadersHistory(&payload, false)
+
 	addr := payload.AddrSender.String()
+	s.Log(true, "GetHeaders received from:", addr)
+
 	p, _ := s.GetPeer(addr)
 	p.IncreaseBytesReceived(uint64(len(request)))
+
 	s.AddPeer(p)
 
 	headerSlice := s.GetBlockHeadersList(payload)
-	for _, header := range headerSlice {
-		fmt.Println("hash:", hex.EncodeToString(header.Hash))
-		fmt.Println("height:", header.Height)
-	}
+	s.sendHeaders(payload.AddrReceiver, headerSlice, &payload)
 }

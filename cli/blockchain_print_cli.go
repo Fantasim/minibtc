@@ -1,27 +1,26 @@
 package cli
 
 import (
-	"fmt"
 	"flag"
+	"fmt"
 	"tway/blockchain"
-	"tway/util"
 	"tway/script"
+	"tway/util"
 )
 
-func blockchainPrintUsage(){
+func blockchainPrintUsage() {
 	fmt.Println(" Options:")
 	fmt.Println(" --basic \t Basic print with : <height> <hash> <size> <nb_tx>")
 	fmt.Println(" --intermediate \t Intermediate print with <height> <hash> <size> <nb_tx> <merkle_root> <unix_time> <difficulty>")
 	fmt.Println(" --advanced \t Advanced print with all block informations and tx details")
 }
 
-
-func printBasic(){
+func printBasic() {
 	e := blockchain.NewExplorer()
 	i := blockchain.BC.Height
 	for i > 0 {
 		block := e.Next()
-		fmt.Printf("============================== Block [%d] =============================\n", i - 1)
+		fmt.Printf("============================== Block [%d] =============================\n", i-1)
 		fmt.Printf("Hash: %x\n", block.GetHash())
 		fmt.Printf("Size: %d\n", util.DecodeInt(block.Size))
 		fmt.Printf("Txs: %d\n\n", len(block.Transactions))
@@ -29,12 +28,12 @@ func printBasic(){
 	}
 }
 
-func printIntermediate(){
+func printIntermediate() {
 	e := blockchain.NewExplorer()
 	i := blockchain.BC.Height
 	for i > 0 {
 		block := e.Next()
-		fmt.Printf("============================== Block [%d] =============================\n", i - 1)
+		fmt.Printf("============================== Block [%d] =============================\n", i-1)
 		fmt.Printf("Hash: %x\n", block.GetHash())
 		fmt.Printf("Merkle root: %x\n", block.Header.HashMerkleRoot)
 		fmt.Printf("Size: %d\n", util.DecodeInt(block.Size))
@@ -45,13 +44,13 @@ func printIntermediate(){
 	}
 }
 
-func printAdvanced(){
+func printAdvanced() {
 	e := blockchain.NewExplorer()
 	i := blockchain.BC.Height
 	for i > 0 {
 		block := e.Next()
-		
-		fmt.Printf("============================== Block [%d] =============================\n", i - 1)
+
+		fmt.Printf("============================== Block [%d] =============================\n", i-1)
 		fmt.Printf("Hash: %x\n", block.GetHash())
 		fmt.Printf("Merkle root: %x\n", block.Header.HashMerkleRoot)
 		fmt.Printf("Size: %d\n", util.DecodeInt(block.Size))
@@ -79,7 +78,7 @@ func printAdvanced(){
 	}
 }
 
-func BlockchainPrintCli(){
+func BlockchainPrintCli() {
 	blockchainPrintCMD := flag.NewFlagSet("blockchain_print", flag.ExitOnError)
 	basic := blockchainPrintCMD.Bool("basic", false, "Print blockchain with basic contents")
 	intermediate := blockchainPrintCMD.Bool("intermediate", false, "Print blockchain with intermediate contents")
@@ -93,7 +92,7 @@ func BlockchainPrintCli(){
 		printIntermediate()
 	} else if *basic == true {
 		printBasic()
-	}  else {
+	} else {
 		blockchainPrintUsage()
 	}
 }

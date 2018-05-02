@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"time"
+	"tway/mempool"
 	"tway/serverutil"
 )
 
@@ -53,6 +54,9 @@ func (s *Server) handleGetData(request []byte) {
 			}()
 		}
 	} else {
-		//tx
+		tx := mempool.Mempool.GetTx(hex.EncodeToString(payload.ID))
+		if tx != nil {
+			s.SendTx(payload.AddrSender, tx)
+		}
 	}
 }

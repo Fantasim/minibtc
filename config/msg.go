@@ -7,6 +7,6 @@ const (
 )
 
 var (
-	MainNodeIP          = []byte{192, 168, 0, 14}
+	MainNodeIP   []byte
 	MainNodePort uint16 = 4000
 )

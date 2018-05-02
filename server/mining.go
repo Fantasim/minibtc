@@ -10,13 +10,13 @@ import (
 //Elle attend qu'un nouveau block a été miné.
 //Dès lors qu'un nouveau block est miné, elle l'ajoute a la chain
 //et l'envoie a tout le réseau.
-func (s *Server) HandleNewBlockMined(){
+func (s *Server) HandleNewBlockMined() {
 	mu := sync.Mutex{}
 
 	for {
 		mu.Lock()
 		//attend un nouveau block miné
-		new := <- s.MiningManager.NewBlock
+		new := <-s.MiningManager.NewBlock
 
 		copyNew := new
 		hashNew := copyNew.GetHash()
@@ -52,12 +52,12 @@ func (s *Server) HandleNewBlockMined(){
 	}
 }
 
-//Commence le minage 
-func (s *Server) Mining(){
+//Commence le minage
+func (s *Server) Mining() {
 	s.MiningManager.StartMining(s.newBlock, s.chain.Tip)
 }
 
-//Retourne true si le noeud courant possède 
+//Retourne true si le noeud courant possède
 //la dernière hauteur de block
 func (s *Server) IsNodeAbleToMine() bool {
 	list := s.GetListOfTrustedMainNode()

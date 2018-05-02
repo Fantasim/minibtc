@@ -1,15 +1,16 @@
 package blockchain
 
 import (
-	twayutil "tway/twayutil"
-	conf "tway/config"
-	util "tway/util"
 	"bytes"
-	"github.com/boltdb/bolt"
-	"time"
-	"strconv"
 	"errors"
 	"fmt"
+	"strconv"
+	"time"
+	conf "tway/config"
+	twayutil "tway/twayutil"
+	util "tway/util"
+
+	"github.com/boltdb/bolt"
 )
 
 //Check la validité des transactions d'un block
@@ -20,24 +21,6 @@ func (b *Blockchain) CheckBlockTXs(block *twayutil.Block) error {
 	err := b.CheckBlockTxCoinbase(block)
 	if err != nil {
 		return err
-	}
-	var txsWithoutCoinbase []twayutil.Transaction
-	//si le block ne contient qu'une transaction coinbase
-	if block.Counter == 1 {
-		txsWithoutCoinbase = []twayutil.Transaction{}
-	} else {
-		//on recopie la liste de transaction sans la coinbase
-		tmp := make([]twayutil.Transaction, len(block.Transactions))
-		copy(tmp, block.Transactions)
-		txsWithoutCoinbase = append(tmp[:0], tmp[1:]...)
-	}
-
-	//on recupere le total des inputs, des ouputs et les frais 
-	//de transaction cumulés de la totalités des transactions 
-	total_inputs, total_outputs, fees := GetTotalAmounts(txsWithoutCoinbase)
-	//si le total des inputs n'est pas egal au total des outputs et des frais de transaction
-	if total_inputs != (total_outputs + fees) {
-		return errors.New(WRONG_BLOCK_PUTS_VALUE)
 	}
 
 	//on verifie individuellement la validitié de chacun des txs du block
@@ -77,7 +60,7 @@ func (b *Blockchain) GetBlockHeight(blockHash []byte) int {
 	be := NewExplorer()
 	var i = 0
 	for {
-		bl := be.Next();
+		bl := be.Next()
 		if bytes.Compare(bl.GetHash(), blockHash) == 0 {
 			return BC.Height - i
 		}
@@ -92,7 +75,7 @@ func (b *Blockchain) GetBlockHeight(blockHash []byte) int {
 //Recupere un block par son hash
 func (b *Blockchain) GetBlockByHash(hash []byte) (*twayutil.Block, int) {
 	var block *twayutil.Block
-	
+
 	db := b.DB
 
 	err := db.View(func(tx *bolt.Tx) error {
@@ -118,12 +101,11 @@ func (b *Blockchain) GetBlockByHeight(height int) *twayutil.Block {
 	be := NewExplorer()
 	i := b.Height
 	for i > height {
-		be.Next();
-		i--;
+		be.Next()
+		i--
 	}
 	return be.Next()
 }
-
 
 //Recupere le dernier block de la chain
 func (b *Blockchain) GetLastBlock() *twayutil.Block {
@@ -138,20 +120,20 @@ func GenesisBlock(pubKey []byte) *twayutil.Block {
 	//créer un nouveau block et ajoute la structure
 	block := &twayutil.Block{
 		Transactions: []twayutil.Transaction{tx},
-		Counter: 1,
+		Counter:      1,
 	}
 
 	//recupère le merkle root de la liste de transaction
 	//contenant uniquement la transaction coinbase
-	HashMerkleRoot := util.NewMerkleTree([][]byte{tx.Serialize()}).RootNode.Data
+	HashMerkleRoot := util.GetMerkleRoot([][]byte{tx.Serialize()}).Data
 
 	//Créer le header du block
 	header := twayutil.BlockHeader{
-		Version: []byte{conf.VERSION},
-		HashPrevBlock: conf.GENESIS_BLOCK_PREVHASH,
+		Version:        []byte{conf.VERSION},
+		HashPrevBlock:  conf.GENESIS_BLOCK_PREVHASH,
 		HashMerkleRoot: HashMerkleRoot,
-		Time:  util.EncodeInt(int(time.Now().Unix())),
-		Bits:  util.EncodeInt(1),
+		Time:           util.EncodeInt(int(time.Now().Unix())),
+		Bits:           util.EncodeInt(1),
 	}
 	block.Header = header
 	MineBlock(block)
@@ -181,7 +163,7 @@ func GetTotalAmounts(list []twayutil.Transaction) (int, int, int) {
 	var total_inputs = 0
 	var total_outputs = 0
 	var fees = 0
-	
+
 	for _, tx := range list {
 		if tx.IsCoinbase() == false {
 			total_i, total_o, fs := GetAmounts(&tx)
@@ -198,7 +180,7 @@ func GetTotalAmounts(list []twayutil.Transaction) (int, int, int) {
 //max == heightStart + nb de block a recupere
 func (b *Blockchain) GetNBlocksNextToHeight(heightStart int, max int) map[string]*twayutil.Block {
 	var list = make(map[string]*twayutil.Block)
-	
+
 	if max > conf.MaxBlockPerMsg {
 		max = conf.MaxBlockPerMsg
 	}
@@ -248,8 +230,8 @@ func (b *Blockchain) CheckNewBlock(new *twayutil.Block) error {
 	lastChainBlockTime := util.DecodeInt(lastChainBlock.Header.Time)
 	//HACK ERROR
 	//if block's time is higher than current time or less than last block added in chain
-	if lastChainBlockTime > newBlockTime || time.Now().Unix() < int64(newBlockTime){
+	if lastChainBlockTime > newBlockTime || time.Now().Unix() < int64(newBlockTime) {
 		return errors.New(WRONG_BLOCK_TIME_ERROR)
 	}
-	return b.CheckBlockTXs(new) 
+	return b.CheckBlockTXs(new)
 }

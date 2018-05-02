@@ -5,13 +5,14 @@ import (
 	"tway/util"
 )
 
-//Structure représentant les informations liées 
+//Structure représentant les informations liées
 //à un UTXO présent dans un wallet local
 type LocalUnspentOutput struct {
-	TxID []byte
-	Idx int
-	Amount int
-	W *Wallet
+	TxID                   []byte
+	Idx                    int
+	Amount                 int
+	W                      *Wallet
+	AmountLockedByMultiSig int
 }
 
 //Récupère une liste d'outputs locaux non dépensé locké avec le pubKeyHash
@@ -25,24 +26,24 @@ func GetLocalUnspentOutputsByPubKeyHash(pubKeyHash []byte, amount int) (int, []L
 		return 0, list
 	}
 
-	amount, unspents := utxo.GetUnspentOutputsByPubKeyHash(pubKeyHash, amount)
-	
+	amount, unspents := utxo.GetUnspentOutputsByPubKOrPubKH([][]byte{pubKeyHash}, amount)
+
 	for _, us := range unspents {
-		localUXO := LocalUnspentOutput{us.TxID, us.Idx, util.DecodeInt(us.Output.Value), w}
+		localUXO := LocalUnspentOutput{us.TxID, us.Idx, util.DecodeInt(us.Output.Value), w, 0}
 		list = append(list, localUXO)
 	}
 
 	return amount, list
 }
 
-//Récupère une liste UTXO sur des wallets 
+//Récupère une liste UTXO sur des wallets
 //enregistrés localement.
-func (wInfo *WalletInfo) GetLocalUnspentOutputs(amount int, notAcceptedAddr... string) (int, []LocalUnspentOutput)  {
+func (wInfo *WalletInfo) GetLocalUnspentOutputs(amount int, notAcceptedAddr ...string) (int, []LocalUnspentOutput) {
 	utxo := b.UTXO
 	var total = 0
 	var localUnSpents []LocalUnspentOutput
 
-	BrowseWallet:
+BrowseWallet:
 	for _, ws := range wInfo.Ws {
 
 		if amount < total {
@@ -50,16 +51,20 @@ func (wInfo *WalletInfo) GetLocalUnspentOutputs(amount int, notAcceptedAddr... s
 		}
 		for _, addr := range notAcceptedAddr {
 			if addr == string(ws.Address) {
-				continue BrowseWallet;
+				continue BrowseWallet
 			}
 		}
 
-		a, outs := utxo.GetUnspentOutputsByPubKeyHash(HashPubKey(ws.W.PublicKey), amount - total)
+		a, outs := utxo.GetUnspentOutputsByPubKOrPubKH([][]byte{HashPubKey(ws.W.PublicKey), ws.W.PublicKey}, amount-total)
 		total += a
 		for _, uo := range outs {
-			luo := LocalUnspentOutput{uo.TxID, uo.Idx, util.DecodeInt(uo.Output.Value), ws.W}
+			var valueLockedByMultiSig int
+			if uo.MultiSig {
+				valueLockedByMultiSig = util.DecodeInt(uo.Output.Value)
+			}
+			luo := LocalUnspentOutput{uo.TxID, uo.Idx, util.DecodeInt(uo.Output.Value), ws.W, valueLockedByMultiSig}
 			localUnSpents = append(localUnSpents, luo)
-		} 
+		}
 	}
 	return total, localUnSpents
 }

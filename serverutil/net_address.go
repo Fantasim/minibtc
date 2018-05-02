@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -45,6 +46,16 @@ func NewNetAddress(addr net.Addr) (*NetAddress, error) {
 
 	na := NewNetAddressIPPort(tcpAddr.IP, uint16(tcpAddr.Port))
 	return na, nil
+}
+
+func NewNetAddressByString(addr string) (*NetAddress, error) {
+	tcpAddr := strings.Split(addr, ":")
+	if len(tcpAddr) == 2 {
+		port, _ := strconv.Atoi(tcpAddr[1])
+		na := NewNetAddressIPPort(net.ParseIP(tcpAddr[0]), uint16(port))
+		return na, nil
+	}
+	return nil, ErrInvalidNetAddr
 }
 
 func NewNetAddressIPPort(ip net.IP, port uint16) *NetAddress {

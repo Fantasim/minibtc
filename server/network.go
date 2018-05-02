@@ -1,6 +1,8 @@
 package server
 
 import (
+	"bytes"
+	"fmt"
 	"time"
 	conf "tway/config"
 	"tway/serverutil"
@@ -10,8 +12,8 @@ import (
 //Recupère une liste d'address non traité
 //Ce sont des pairs avec qui le noeud courant n'a ni vérifié l'existence avec un ping,
 //ni échangé les versions.
-func (s *Server) ListOfUntreatedPeers() map[string]*serverPeer {
-	ret := make(map[string]*serverPeer)
+func (s *Server) ListOfUntreatedPeers() listOfPeers {
+	ret := make(listOfPeers)
 	s.peers.Range(func(key, val interface{}) bool {
 		p := val.(*serverPeer)
 		if p.GetLastPingSentTime() == 0 && p.IsVersionSent() == false {
@@ -24,8 +26,8 @@ func (s *Server) ListOfUntreatedPeers() map[string]*serverPeer {
 
 //Recupère une liste d'address dite "de confiance"
 //ce sont des pairs avec qui le noeud courant a échangé sa version
-func (s *Server) ListOfTrustedPeers() map[string]*serverPeer {
-	ret := make(map[string]*serverPeer)
+func (s *Server) ListOfTrustedPeers() listOfPeers {
+	ret := make(listOfPeers)
 	s.peers.Range(func(key, val interface{}) bool {
 		p := val.(*serverPeer)
 		if p.IsVersionSent() == true && p.IsVerAckReceived() == true {
@@ -37,8 +39,8 @@ func (s *Server) ListOfTrustedPeers() map[string]*serverPeer {
 	return ret
 }
 
-func (s *Server) GetCloserAndSafestPeers() map[string]*serverPeer {
-	ret := make(map[string]*serverPeer)
+func (s *Server) GetCloserAndSafestPeers() listOfPeers {
+	ret := make(listOfPeers)
 
 	s.peers.Range(func(key, val interface{}) bool {
 		p := val.(*serverPeer)
@@ -51,8 +53,8 @@ func (s *Server) GetCloserAndSafestPeers() map[string]*serverPeer {
 	return ret
 }
 
-func (s *Server) GetListOfTrustedMainNode() map[string]*serverPeer {
-	ret := make(map[string]*serverPeer)
+func (s *Server) GetListOfTrustedMainNode() listOfPeers {
+	ret := make(listOfPeers)
 
 	s.peers.Range(func(key, val interface{}) bool {
 		p := val.(*serverPeer)
@@ -105,7 +107,7 @@ func (s *Server) treatPeersAfterPong(unTreatedPeers map[string]*serverPeer) {
 				delete(unTreatedPeers, unTreatedaddr)
 			}
 		}
-		//on sleep durant 500 MS
+		//on sleep durant 100 MS
 		time.Sleep(100 * time.Millisecond)
 	}
 }
@@ -113,7 +115,7 @@ func (s *Server) treatPeersAfterPong(unTreatedPeers map[string]*serverPeer) {
 /*IMPROVE_LATER*/
 //kind :
 //getblock
-func (s *Server) SelectPerfectPeers(kind string) []*serverPeer {
+func (s *Server) SelectPerfectPeers(kind string) sliceOfPeers {
 	switch kind {
 	case "getblock":
 		peers := s.syncMapToListOfPeers(s.peers).GetPeersBasedOnHeight(s.chain.Height + 1).ListOfPeersToSlice()
@@ -123,4 +125,29 @@ func (s *Server) SelectPerfectPeers(kind string) []*serverPeer {
 		return nil
 	}
 	return nil
+}
+
+func (s *Server) SelectPerfectPeersHavingABlock(hash []byte) sliceOfPeers {
+	var ret sliceOfPeers
+
+	headersHistory := s.HistoryManager.Headers
+HEADERHISTORY:
+	for addr, listHH := range headersHistory {
+
+		for _, hh := range listHH {
+
+			for _, h := range hh.Message.List {
+				if bytes.Compare(h.Hash, hash) == 0 || bytes.Compare(h.Header.HashPrevBlock, hash) == 0 {
+					na, err := serverutil.NewNetAddressByString(addr)
+					if err == nil {
+						ret = append(ret, NewServerPeer(na))
+					} else {
+						fmt.Println("ERROR IN SelectPerfectPeersHavingABlock")
+					}
+					continue HEADERHISTORY
+				}
+			}
+		}
+	}
+	return ret
 }

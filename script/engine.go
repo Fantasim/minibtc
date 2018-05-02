@@ -1,24 +1,23 @@
 package script
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"tway/util"
 )
 
-
 // Engine is the virtual machine that executes scripts.
 type Engine struct {
-	scripts         [][]parsedOpcode
+	scripts [][]parsedOpcode
 
-	dstack          stack // data stack
-	astack          stack // alt stack
-	tx				*util.Transaction
-	prevTxs 		map[string]*util.Transaction
-	txIdx			int
+	dstack  stack // data stack
+	astack  stack // alt stack
+	tx      *util.Transaction
+	prevTxs map[string]*util.Transaction
+	txIdx   int
 }
 
-func (engine *Engine) PrintScript(idx int){
+func (engine *Engine) PrintScript(idx int) {
 	fmt.Printf("script[%d]: ", idx)
 	for _, code := range engine.scripts[idx] {
 		if code.opcode.IsEmpty() {
@@ -38,7 +37,7 @@ func NewEngine(prevTxs map[string]*util.Transaction, tx *util.Transaction, idx i
 	engine.tx = tx
 	engine.prevTxs = prevTxs
 	engine.txIdx = idx
-	return engine	
+	return engine
 }
 
 //Parse le double array byte en script
@@ -47,15 +46,15 @@ func (engine *Engine) ParseScript(script [][]byte) error {
 		op := new(opcode)
 		op.opfunc = opcodePushData
 		if len(opcodeByte) == 1 {
-			idx := int(opcodeByte[0])	
-			op = &opcodeArray[idx]		
+			idx := int(opcodeByte[0])
+			op = &opcodeArray[idx]
 		} else if len(opcodeByte) == 0 {
 			continue
 		}
 		engine.scripts[0] = append(
 			engine.scripts[0],
 			parsedOpcode{
-				op, 
+				op,
 				opcodeByte,
 			},
 		)
@@ -80,7 +79,7 @@ func (engine *Engine) Run(initialScript [][]byte) error {
 		return errors.New("empty")
 	}
 	//affichage du script
-//	engine.PrintScript(0)
+	//	engine.PrintScript(0)
 	var i = 0
 	for i < len(engine.scripts[0]) {
 		//Pour chaque ordre du script, effectue la function correspondante
@@ -92,7 +91,7 @@ func (engine *Engine) Run(initialScript [][]byte) error {
 		var newLineScript []parsedOpcode
 		var j = i + 1
 		//on créer une copie de la ligne de script
-		//en ajoutant chaque ordre n'ayant pas encore 
+		//en ajoutant chaque ordre n'ayant pas encore
 		//été push sur la stack ou ayant été exécuté sur la stack
 		for j < len(engine.scripts[0]) {
 			newLineScript = append(newLineScript, engine.scripts[0][j])
@@ -101,16 +100,16 @@ func (engine *Engine) Run(initialScript [][]byte) error {
 		//on ajoute la copie dans la tableau
 		engine.scripts = append(engine.scripts, newLineScript)
 		//on affiche la stack
-//		engine.dstack.PrintStack()
+		//		engine.dstack.PrintStack()
 		//on affiche la nouvelle copie du script
-//		engine.PrintScript(i + 1)
+		//		engine.PrintScript(i + 1)
 		i++
 	}
 	return nil
 }
 
 func (engine *Engine) IsScriptSucceed() bool {
-	if len(engine.dstack.stk) == 1{
+	if len(engine.dstack.stk) == 1 {
 		b, _ := engine.dstack.PopBool()
 		return b
 	}

@@ -1,6 +1,7 @@
 package peerhistory
 
 import (
+	"fmt"
 	"time"
 	conf "tway/config"
 
@@ -9,20 +10,31 @@ import (
 	"tway/serverutil"
 )
 
+type GetBlock map[string]ListBlocksHistory
 type ListBlocksHistory []GetBlocksHistory
 
 //structure representant un historique de getblocks
 type GetBlocksHistory struct {
-	Message *serverutil.MsgAskBlocks
 	Date    time.Time
+	Message *serverutil.MsgAskBlocks
 	Sent    bool
 }
 
+//Créer un historique de requete getblocks
+func (hm *HistoryManager) NewGetBlocksHistory(msg *serverutil.MsgAskBlocks, sent bool) {
+	hm.muGetBlock.Lock()
+	defer hm.muGetBlock.Unlock()
+	addr := msg.Addr.String()
+	gbh := GetBlocksHistory{time.Now(), msg, sent}
+	hm.GetBlock[addr] = append(hm.GetBlock[addr], gbh)
+	hm.Log("getblocks request", gbh.String())
+}
+
 //Récupère la plus grande hauteur de block demandé
-func (hm *HistoryManager) GetBetterHeightAsked() int {
+func (gb GetBlock) GetBetterHeightAsked() int {
 	var betterHeight int = 0
-	for _, gb := range hm.GetBlock {
-		for _, h := range gb {
+	for _, gbh := range gb {
+		for _, h := range gbh {
 			if betterHeight < h.Message.Range[1] {
 				betterHeight = h.Message.Range[1]
 			}
@@ -34,10 +46,10 @@ func (hm *HistoryManager) GetBetterHeightAsked() int {
 //Recupère une liste de requete getblocks ayant un intervalle de block
 //maximum possible soit Range[1] - Range[0] == conf.MaxBlockPerMsg
 //le nombre maximale possible de block demandable par requete getblocks
-func (hm *HistoryManager) GetgetBlocksHistorysAskedWithMaxRange() ListBlocksHistory {
+func (gb GetBlock) GetgetBlocksHistorysAskedWithMaxRange() ListBlocksHistory {
 	var list ListBlocksHistory
-	for _, gb := range hm.GetBlock {
-		for _, h := range gb {
+	for _, gbh := range gb {
+		for _, h := range gbh {
 			if h.ContainAFullRange() {
 				list = append(list, h)
 			}
@@ -46,12 +58,13 @@ func (hm *HistoryManager) GetgetBlocksHistorysAskedWithMaxRange() ListBlocksHist
 	return list.Select(true)
 }
 
-//Créer un historique de requete getblocks
-func (hm *HistoryManager) NewGetBlocksHistory(msg *serverutil.MsgAskBlocks, sent bool) {
-	hm.muGetBlock.Lock()
-	defer hm.muGetBlock.Unlock()
-	addr := msg.Addr.String()
-	hm.GetBlock[addr] = append(hm.GetBlock[addr], GetBlocksHistory{msg, time.Now(), sent})
+func (gb GetBlock) GetBlocksHistoryByAddr(addr string) ListBlocksHistory {
+	d, exist := gb[addr]
+	if exist == false {
+		var ret ListBlocksHistory
+		return ret
+	}
+	return d
 }
 
 //Fonction retournant une liste d'historique de requete getblocks
@@ -75,7 +88,7 @@ func (list ListBlocksHistory) SortByDate(desc bool) ListBlocksHistory {
 
 	//on les tries par date de creation
 	slice.Sort(ret[:], func(i, j int) bool {
-		if desc == false {
+		if desc == true {
 			return ret[i].Date.After(ret[j].Date)
 		} else {
 			return ret[i].Date.Before(ret[j].Date)
@@ -120,4 +133,8 @@ func (gbh *GetBlocksHistory) ContainAFullRange() bool {
 		return false
 	}
 	return gbh.Message.Range[1]-gbh.Message.Range[0]+1 == conf.MaxBlockPerMsg
+}
+
+func (gbh *GetBlocksHistory) String() string {
+	return fmt.Sprintf("{Date: %s, Message: %s, Sent: %t}", gbh.Date.Format("15:04:05.000000"), gbh.Message.String(), gbh.Sent)
 }
