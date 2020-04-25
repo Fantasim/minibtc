@@ -1,12 +1,14 @@
 # cryptoStarter
 
-Called crypto starter bc I wanted to figure out the whole blockchain technical ecosystem in its tiny details. The best way to make it happen ? building a complete working crypto from scratch.
+Here is a crypto currency like Bitcoin made from scratch.
+It implements all the systems required to work in network and in production. 
 
-- Wallet
 - P2P Server
+- Wallet
 - UTXO
 - Proof of work
 - Mining
 - Mempool
 - Script Engine
-- and more...
+- CLI
+- OPcodes
