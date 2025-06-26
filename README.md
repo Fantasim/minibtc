@@ -32,18 +32,6 @@ MiniBTC is a educational cryptocurrency implementation that demonstrates core bl
   - Multi-signature support foundation
   - Mempool management
 
-## 🏗️ Architecture
-
-```
-├── blockchain/     # Core blockchain logic
-├── crypto/         # Cryptographic utilities
-├── network/        # P2P networking layer
-├── transaction/    # Transaction handling
-├── wallet/         # Wallet functionality
-├── consensus/      # Consensus algorithms
-└── utils/          # Helper utilities
-```
-
 ## 🛠️ Installation
 
 ```bash
